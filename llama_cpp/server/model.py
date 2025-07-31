@@ -171,6 +171,20 @@ class LlamaProxy:
                 chat_handler = llama_cpp.llama_chat_format.MiniCPMv26ChatHandler(
                     clip_model_path=settings.clip_model_path, verbose=settings.verbose
                 )
+        elif settings.chat_format == "qwen2.5-vl":
+            assert settings.clip_model_path is not None, "clip model not found"
+            if settings.hf_model_repo_id is not None:
+                chat_handler = (
+                    llama_cpp.llama_chat_format.Qwen25VLChatHandler.from_pretrained(
+                        repo_id=settings.hf_model_repo_id,
+                        filename=settings.clip_model_path,
+                        verbose=settings.verbose,
+                    )
+                )
+            else:
+                chat_handler = llama_cpp.llama_chat_format.Qwen25VLChatHandler(
+                    clip_model_path=settings.clip_model_path, verbose=settings.verbose
+                )
         elif settings.chat_format == "hf-autotokenizer":
             assert (
                 settings.hf_pretrained_model_name_or_path is not None
@@ -262,11 +276,13 @@ class LlamaProxy:
             yarn_orig_ctx=settings.yarn_orig_ctx,
             defrag_thold=settings.defrag_thold,
             mul_mat_q=settings.mul_mat_q,
+            logits_all=settings.logits_all,
             embedding=settings.embedding,
             offload_kqv=settings.offload_kqv,
             flash_attn=settings.flash_attn,
             op_offload=settings.op_offload,
             swa_full=settings.swa_full,
+            kv_unified=settings.kv_unified,
             # Sampling Params
             last_n_tokens_size=settings.last_n_tokens_size,
             # LoRA Params

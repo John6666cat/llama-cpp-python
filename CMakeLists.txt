@@ -97,6 +97,13 @@ if (LLAMA_BUILD)
     endif()
 
     add_subdirectory(vendor/llama.cpp)
+
+    if (WIN32)
+        if (TARGET llama)
+            set_target_properties(llama PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+        endif()
+    endif()
+
     llama_cpp_python_install_target(llama)
     llama_cpp_python_install_target(ggml)
 
@@ -115,6 +122,7 @@ if (LLAMA_BUILD)
     llama_cpp_python_install_target(ggml-rpc)
     llama_cpp_python_install_target(ggml-sycl)
     llama_cpp_python_install_target(ggml-vulkan)
+    llama_cpp_python_install_target(ggml-webgpu)
 
     # Workaround for Windows + CUDA https://github.com/abetlen/llama-cpp-python/issues/563
     if (WIN32)

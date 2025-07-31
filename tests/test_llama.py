@@ -11,6 +11,11 @@ import pytest
 import llama_cpp
 import llama_cpp._internals as internals
 
+from typing import (
+    List,
+    Dict,
+)
+
 
 MODEL = "./vendor/llama.cpp/models/ggml-vocab-llama-spm.gguf"
 
@@ -83,6 +88,7 @@ def test_real_model(llama_cpp_model_path):
     cparams.n_threads_batch = multiprocessing.cpu_count()
     cparams.flash_attn = True
     cparams.swa_full = True
+    cparams.kv_unified = True
 
     context = internals.LlamaContext(model=model, params=cparams)
     tokens = model.tokenize(b"Hello, world!", add_bos=True, special=True)
@@ -103,7 +109,7 @@ def test_real_model(llama_cpp_model_path):
     result = tokens
     n_eval = 0
     for _ in range(4):
-        batch.set_batch(tokens, n_past=n_eval)
+        batch.set_batch(tokens, n_past=n_eval, logits_all=False)
         context.decode(batch)
         n_eval += len(tokens)
         token_id = sampler.sample(context, -1)
@@ -122,8 +128,10 @@ def test_real_llama(llama_cpp_model_path):
         n_ubatch=32,
         n_threads=multiprocessing.cpu_count(),
         n_threads_batch=multiprocessing.cpu_count(),
+        logits_all=False,
         flash_attn=True,
-        swa_full = True
+        swa_full=True,
+        kv_unified=True,
     )
 
     output = model.create_completion(
@@ -151,15 +159,13 @@ root ::= "true" | "false"
     assert output["choices"][0]["text"] == "true"
 
     suffix = b"rot"
-    tokens = model.tokenize(suffix, add_bos=True, special=True)
-    def logit_processor_func(input_ids, logits):
-        for token in tokens:
-            logits[token] *= 1000
-        return logits
 
-    logit_processors = llama_cpp.LogitsProcessorList(
-        [logit_processor_func]
-    )
+    tokens = model.tokenize(suffix, add_bos=True, special=True)
+
+    logit_bias: Dict[int, float] = {}
+
+    for token_id in tokens:
+        logit_bias[token_id] = 1000
 
     output = model.create_completion(
         "The capital of france is par",
@@ -168,8 +174,9 @@ root ::= "true" | "false"
         top_p=0.9,
         temperature=0.8,
         seed=1337,
-        logits_processor=logit_processors
+        logit_bias=logit_bias
     )
+
     assert output["choices"][0]["text"].lower().startswith("rot")
 
     model.set_seed(1337)
@@ -216,3 +223,21 @@ root ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10"
 
     assert number_1 != number_2
     assert number_1 == number_3
+
+
+def test_real_llama_embeddings(llama_cpp_model_path):
+    model = llama_cpp.Llama(
+        llama_cpp_model_path,
+        n_ctx=32,
+        n_batch=32,
+        n_ubatch=32,
+        n_threads=multiprocessing.cpu_count(),
+        n_threads_batch=multiprocessing.cpu_count(),
+        logits_all=False,
+        flash_attn=True,
+        swa_full=True,
+        kv_unified=True,
+        embedding=True
+    )
+    # Smoke test for now
+    model.embed("Hello World")

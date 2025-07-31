@@ -99,6 +99,7 @@ class ModelSettings(BaseSettings):
     mul_mat_q: bool = Field(
         default=True, description="if true, use experimental mul_mat_q kernels"
     )
+    logits_all: bool = Field(default=True, description="Whether to return logits.")
     embedding: bool = Field(default=False, description="Whether to use embeddings.")
     offload_kqv: bool = Field(
         default=True, description="Whether to offload kqv to the GPU."
@@ -111,6 +112,9 @@ class ModelSettings(BaseSettings):
     )
     swa_full: bool = Field(
         default=True, description="Whether to use full-size SWA cache"
+    )
+    kv_unified: bool = Field(
+        default=True, description="enable single unified KV buffer for the KV cache of all sequences"
     )
     # Sampling Params
     last_n_tokens_size: int = Field(

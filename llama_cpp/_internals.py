@@ -146,6 +146,9 @@ class LlamaModel:
     def token_pad(self) -> int:
         return llama_cpp.llama_vocab_pad(self.vocab)
 
+    def token_mask(self) -> int:
+        return llama_cpp.llama_vocab_mask(self.vocab)
+
     def token_cls(self) -> int:
         return llama_cpp.llama_vocab_cls(self.vocab)
 
@@ -309,7 +312,10 @@ class LlamaContext:
         llama_cpp.llama_memory_clear(self.get_memory(), data)
 
     def memory_seq_rm(self, seq_id: int, p0: int, p1: int) -> bool:
-        return llama_cpp.llama_memory_seq_rm(self.get_memory(), seq_id, p0, p1)
+        if self.ctx is not None and seq_id >= 0:
+            return llama_cpp.llama_memory_seq_rm(self.get_memory(), seq_id, p0, p1)
+        else:
+            return False
 
     def memory_seq_cp(self, seq_id_src: int, seq_id_dst: int, p0: int, p1: int):
         llama_cpp.llama_memory_seq_cp(self.get_memory(), seq_id_src, seq_id_dst, p0, p1)
@@ -537,7 +543,7 @@ class LlamaBatch:
     def reset(self):
         self.batch.n_tokens = 0
 
-    def set_batch(self, batch: Sequence[int], n_past: int):
+    def set_batch(self, batch: Sequence[int], n_past: int, logits_all: bool):
         n_tokens = len(batch)
         self.batch.n_tokens = n_tokens
         for i in range(n_tokens):
@@ -545,9 +551,10 @@ class LlamaBatch:
             self.batch.pos[i] = n_past + i
             self.batch.seq_id[i][0] = 0
             self.batch.n_seq_id[i] = 1
+            self.batch.logits[i] = logits_all
         self.batch.logits[n_tokens - 1] = True
 
-    def add_sequence(self, batch: Sequence[int], seq_id: int):
+    def add_sequence(self, batch: Sequence[int], seq_id: int, logits_all: bool):
         n_tokens = len(batch)
         n_tokens0 = self.batch.n_tokens
         self.batch.n_tokens += n_tokens
@@ -557,6 +564,7 @@ class LlamaBatch:
             self.batch.pos[j] = i
             self.batch.seq_id[j][0] = seq_id
             self.batch.n_seq_id[j] = 1
+            self.batch.logits[j] = logits_all
         self.batch.logits[n_tokens - 1] = True
 
 
@@ -789,7 +797,7 @@ class CustomSampler:
         self.sampler = llama_cpp.llama_sampler_init(ctypes.pointer(sampler_i), None)
 
     def get_sampler(self) -> llama_cpp.llama_sampler_p:
-        return ctypes.pointer(self.sampler)
+        return self.sampler
 
 
 class LlamaSampler:
@@ -980,12 +988,17 @@ class LlamaSampler:
         )
         self._add_sampler(sampler)
 
-    def init_logit_bias(
-        self, n_vocab: int, n_logit_bias, logit_bias: llama_cpp.llama_logit_bias_p
+    def add_logit_bias(
+        self, n_vocab: int, logit_bias: Dict[int, float]
     ):
-        sampler = llama_cpp.llama_sampler_init_logit_bias(
-            n_vocab, n_logit_bias, logit_bias
-        )
+        # Construct a C array to store the contents of the logit_bias dictionary
+        logit_bias_array = (llama_cpp.llama_logit_bias * len(logit_bias))()
+
+        for i, (token, bias) in enumerate(logit_bias.items()):
+            logit_bias_array[i].token = token
+            logit_bias_array[i].bias = bias
+
+        sampler = llama_cpp.llama_sampler_init_logit_bias(n_vocab, len(logit_bias), logit_bias_array)
         self._add_sampler(sampler)
 
     def add_custom(
@@ -996,7 +1009,7 @@ class LlamaSampler:
         self._add_sampler(sampler)
         # NOTE: Must remove custom samplers before free or llama.cpp will try to free them
         self.custom_samplers.append(
-            (llama_cpp.llama_sampler_chain_n(self.sampler) - 1, custom_sampler)
+            [llama_cpp.llama_sampler_chain_n(self.sampler) - 1, custom_sampler]
         )
 
     def _add_sampler(self, sampler: llama_cpp.llama_sampler_p):

@@ -66,7 +66,6 @@ class Llama:
         split_mode: int = llama_cpp.LLAMA_SPLIT_MODE_LAYER,
         main_gpu: int = 0,
         tensor_split: Optional[List[float]] = None,
-        rpc_servers: Optional[str] = None,
         vocab_only: bool = False,
         use_mmap: bool = True,
         use_mlock: bool = False,
@@ -90,11 +89,13 @@ class Llama:
         yarn_beta_slow: float = 1.0,
         yarn_orig_ctx: int = 0,
         defrag_thold: float = -1.0,
+        logits_all: bool = False,
         embedding: bool = False,
         offload_kqv: bool = True,
         flash_attn: bool = False,
-        op_offload: bool = True,
-        swa_full: bool = True,
+        op_offload: Optional[bool] = None,
+        swa_full: Optional[bool] = None,
+        kv_unified: Optional[bool] = None,
         # Sampling Params
         no_perf: bool = False,
         last_n_tokens_size: int = 64,
@@ -152,7 +153,6 @@ class Llama:
             split_mode: How to split the model across GPUs. See llama_cpp.LLAMA_SPLIT_* for options.
             main_gpu: main_gpu interpretation depends on split_mode: LLAMA_SPLIT_MODE_NONE: the GPU that is used for the entire model. LLAMA_SPLIT_MODE_ROW: the GPU that is used for small tensors and intermediate results. LLAMA_SPLIT_MODE_LAYER: ignored
             tensor_split: How split tensors should be distributed across GPUs. If None, the model is not split.
-            rpc_servers: Comma separated list of RPC servers to use for offloading
             vocab_only: Only load the vocabulary no weights.
             use_mmap: Use mmap if possible.
             use_mlock: Force the system to keep the model in RAM.
@@ -173,11 +173,13 @@ class Llama:
             yarn_beta_slow: YaRN high correction dim
             yarn_orig_ctx: YaRN original context size
             defrag_thold: Defragment the KV cache if holes/size > thold, <= 0 disabled (default)
+            logits_all: Return logits for all tokens, not just the last token. Must be True for completion to return logprobs.
             embedding: Embedding mode only.
             offload_kqv: Offload K, Q, V to GPU.
             flash_attn: Use flash attention.
             op_offload: whether to offload host tensor operations to device
             swa_full: whether to use full-size SWA cache
+            kv_unified: use single unified KV buffer for the KV cache of all sequences
             no_perf: Measure performance timings.
             last_n_tokens_size: Maximum number of tokens to keep in the last_n_tokens deque.
             lora_base: Optional path to base model, useful if using a quantized base model and you want to apply LoRA to an f16 model.
@@ -230,11 +232,6 @@ class Llama:
         )  # 0x7FFFFFFF is INT32 max, will be auto set to all layers
         self.model_params.split_mode = split_mode
         self.model_params.main_gpu = main_gpu
-        if rpc_servers is not None:
-            self.model_params.rpc_servers = rpc_servers.encode("utf-8")
-            self._rpc_servers = rpc_servers
-        else:
-            self._rpc_servers = None
         self.tensor_split = tensor_split
         self._c_tensor_split = None
         if self.tensor_split is not None:
@@ -346,11 +343,20 @@ class Llama:
         )
         self.context_params.yarn_orig_ctx = yarn_orig_ctx if yarn_orig_ctx != 0 else 0
         self.context_params.defrag_thold = defrag_thold
+        self._logits_all = logits_all if draft_model is None else True
         self.context_params.embeddings = embedding  # TODO: Rename to embeddings
         self.context_params.offload_kqv = offload_kqv
         self.context_params.flash_attn = flash_attn
-        self.context_params.op_offload = op_offload
-        self.context_params.swa_full = swa_full
+
+        if op_offload is not None:
+            self.context_params.op_offload = op_offload
+
+        if swa_full is not None:
+            self.context_params.swa_full = swa_full
+
+        if kv_unified is not None:
+            self.context_params.kv_unified = kv_unified
+
         #  KV cache quantization
         if type_k is not None:
             self.context_params.type_k = type_k
@@ -461,7 +467,9 @@ class Llama:
 
         self.n_tokens = 0
         self.input_ids: npt.NDArray[np.intc] = np.ndarray((n_ctx,), dtype=np.intc)
-        self.scores: npt.NDArray[np.single] = np.ndarray((n_batch, self._n_vocab), dtype=np.single)
+        self.scores: npt.NDArray[np.single] = np.ndarray(
+            (n_ctx if logits_all == True else n_batch, self._n_vocab), dtype=np.single
+        )
 
         self._mirostat_mu = ctypes.c_float(
             2.0 * 5.0
@@ -570,7 +578,7 @@ class Llama:
     def eval_logits(self) -> Deque[List[float]]:
         return deque(
             self.scores[: self.n_tokens, :].tolist(),
-            maxlen = 1
+            maxlen=self._n_ctx if self._logits_all else 1,
         )
 
     def tokenize(
@@ -637,18 +645,34 @@ class Llama:
         Args:
             tokens: The list of tokens to evaluate.
         """
-        self._ctx.memory_seq_rm(-1, self.n_tokens, -1)
+        self._ctx.memory_seq_rm(0, self.n_tokens, -1)
         for i in range(0, len(tokens), self.n_batch):
             batch = tokens[i : min(len(tokens), i + self.n_batch)]
             n_past = self.n_tokens
             n_tokens = len(batch)
             self._batch.set_batch(
-                batch=batch, n_past=n_past
+                batch=batch, n_past=n_past, logits_all=self._logits_all
             )
             self._ctx.decode(self._batch)
             # Save tokens
             self.input_ids[n_past : n_past + n_tokens] = batch
-
+            # Save logits
+            if self._logits_all:
+                rows = n_tokens
+                cols = self._n_vocab
+                logits = np.ctypeslib.as_array(
+                    self._ctx.get_logits(), shape=(rows * cols,)
+                )
+                self.scores[n_past : n_past + n_tokens, :].reshape(-1)[::] = logits
+            else:
+                # rows = 1
+                # cols = self._n_vocab
+                # logits = np.ctypeslib.as_array(
+                #     self._ctx.get_logits(), shape=(rows * cols,)
+                # )
+                # self.scores[n_past + n_tokens - 1, :].reshape(-1)[::] = logits
+                # NOTE: Now that sampling is done inside the sampler, logits are only needed for logprobs which requires logits_all
+                pass
             # Update n_tokens
             self.n_tokens += n_tokens
 
@@ -674,32 +698,14 @@ class Llama:
         dry_penalty_last_n:int = 0,
         dry_seq_breakers: list[str] = ["\n", ":", "\"", "*"],
         penalize_nl: bool = True,
+        logit_bias: Optional[Dict[int, float]] = None,
         logits_processor: Optional[LogitsProcessorList] = None,
         grammar: Optional[LlamaGrammar] = None,
     ):
         sampler = internals.LlamaSampler()
 
-        if logits_processor is not None:
-            # Create and add a custom sampler
-            def apply_func(token_data_array: llama_cpp.llama_token_data_array_p):
-                size = token_data_array.contents.size
-                data_soa = token_data_array.contents.data
-                data_soa_address = ctypes.addressof(data_soa.contents)
-                # NOTE: This is probably broken
-                recarray = np.recarray(
-                    shape=(size,),
-                    dtype=np.dtype(
-                        [("id", np.intc), ("logit", np.single), ("p", np.single)],
-                        align=True,
-                    ),
-                    buf=(llama_cpp.llama_token_data * size).from_address(
-                        data_soa_address
-                    ),
-                )
-                for logit_processor in logits_processor:
-                    recarray.logit[:] = logit_processor(self._input_ids, recarray.logit)
-
-            sampler.add_custom(apply_func)
+        if logit_bias is not None:
+            sampler.add_logit_bias(self.n_vocab(), logit_bias)
 
         sampler.add_penalties(
             n_vocab=self._n_vocab,
@@ -773,6 +779,7 @@ class Llama:
         dry_penalty_last_n:int = 0,
         dry_seq_breakers: list[str] = ["\n", ":", "\"", "*"],
         penalize_nl: bool = True,
+        logit_bias: Optional[Dict[int, float]] = None,
         logits_processor: Optional[LogitsProcessorList] = None,
         grammar: Optional[LlamaGrammar] = None,
         idx: Optional[int] = None,
@@ -815,6 +822,7 @@ class Llama:
                 dry_penalty_last_n=dry_penalty_last_n,
                 dry_seq_breakers=dry_seq_breakers,
                 penalize_nl=penalize_nl,
+                logit_bias=logit_bias,
                 logits_processor=logits_processor,
                 grammar=grammar,
             )
@@ -851,6 +859,7 @@ class Llama:
         dry_penalty_last_n:int = 0,
         dry_seq_breakers: list[str] = ["\n", ":", "\"", "*"],
         penalize_nl: bool = True,
+        logit_bias: Optional[Dict[int, float]] = None,
         logits_processor: Optional[LogitsProcessorList] = None,
         stopping_criteria: Optional[StoppingCriteriaList] = None,
         grammar: Optional[LlamaGrammar] = None,
@@ -897,6 +906,7 @@ class Llama:
             dry_penalty_last_n=dry_penalty_last_n,
             dry_seq_breakers=dry_seq_breakers,
             penalize_nl=penalize_nl,
+            logit_bias=logit_bias,
             logits_processor=logits_processor,
             grammar=grammar,
         )
@@ -955,6 +965,7 @@ class Llama:
                     dry_allowed_length=dry_allowed_length,
                     dry_penalty_last_n=dry_penalty_last_n,
                     dry_seq_breakers=dry_seq_breakers,
+                    logit_bias=logit_bias,
                     logits_processor=logits_processor,
                     grammar=grammar,
                     penalize_nl=penalize_nl,
@@ -974,7 +985,7 @@ class Llama:
 
                 if sample_idx < self.n_tokens and token != self._input_ids[sample_idx]:
                     self.n_tokens = sample_idx
-                    self._ctx.memory_seq_rm(-1, self.n_tokens, -1)
+                    self._ctx.memory_seq_rm(0, self.n_tokens, -1)
                     break
 
             if self.draft_model is not None:
@@ -1048,6 +1059,7 @@ class Llama:
 
         # get pooling information
         pooling_type = self.pooling_type()
+        logits_all = pooling_type == llama_cpp.LLAMA_POOLING_TYPE_NONE
 
         if self.context_params.embeddings is False:
             raise RuntimeError(
@@ -1069,7 +1081,7 @@ class Llama:
         data: Union[List[List[float]], List[List[List[float]]]] = []
 
         def decode_batch(seq_sizes: List[int]):
-            llama_cpp.llama_kv_cache_clear(self._ctx.ctx)
+            llama_cpp.llama_memory_clear(llama_cpp.llama_get_memory(self._ctx.ctx), True)
             self._ctx.decode(self._batch)
             self._batch.reset()
 
@@ -1125,7 +1137,7 @@ class Llama:
                 p_batch = 0
 
             # add to batch
-            self._batch.add_sequence(tokens, p_batch)
+            self._batch.add_sequence(tokens, p_batch, logits_all)
 
             # update batch stats
             s_batch.append(n_tokens)
@@ -1140,7 +1152,7 @@ class Llama:
 
         output = data[0] if isinstance(input, str) else data
 
-        llama_cpp.llama_kv_cache_clear(self._ctx.ctx)
+        llama_cpp.llama_memory_clear(llama_cpp.llama_get_memory(self._ctx.ctx), True)
         self.reset()
 
         if return_count:
@@ -1179,9 +1191,9 @@ class Llama:
         dry_seq_breakers: list[str] = ["\n", ":", "\"", "*"],
         model: Optional[str] = None,
         stopping_criteria: Optional[StoppingCriteriaList] = None,
+        logit_bias: Optional[Dict[int, float]] = None,
         logits_processor: Optional[LogitsProcessorList] = None,
         grammar: Optional[LlamaGrammar] = None,
-        logit_bias: Optional[Dict[int, float]] = None,
     ) -> Union[
         Iterator[CreateCompletionResponse], Iterator[CreateCompletionStreamResponse]
     ]:
@@ -1325,9 +1337,9 @@ class Llama:
         else:
             stop_sequences = []
 
-        if logprobs is not None:
+        if logprobs is not None and self._logits_all is False:
             raise ValueError(
-                "logprobs is not supported for models"
+                "logprobs is not supported for models created with logits_all=False"
             )
 
         if self.cache:
@@ -1376,6 +1388,7 @@ class Llama:
             presence_penalty=presence_penalty,
             repeat_penalty=repeat_penalty,
             stopping_criteria=stopping_criteria,
+            logit_bias=logit_bias,
             logits_processor=logits_processor,
             grammar=grammar,
         ):
@@ -1813,9 +1826,9 @@ class Llama:
         dry_seq_breakers: list[str] = ["\n", ":", "\"", "*"],
         model: Optional[str] = None,
         stopping_criteria: Optional[StoppingCriteriaList] = None,
+        logit_bias: Optional[Dict[int, float]] = None,
         logits_processor: Optional[LogitsProcessorList] = None,
         grammar: Optional[LlamaGrammar] = None,
-        logit_bias: Optional[Dict[int, float]] = None,
     ) -> Union[CreateCompletionResponse, Iterator[CreateCompletionStreamResponse]]:
         """Generate text from a prompt.
 
@@ -1849,9 +1862,9 @@ class Llama:
             dry_seq_breakers: Specify an array of sequence breakers for DRY sampling. Only a JSON array of strings is accepted. Default: `['\n', ':', '"', '*']`
             model: The name to use for the model in the completion object.
             stopping_criteria: A list of stopping criteria to use.
+            logit_bias: A logit bias to use.
             logits_processor: A list of logits processors to use.
             grammar: A grammar to use for constrained sampling.
-            logit_bias: A logit bias to use.
 
         Raises:
             ValueError: If the requested tokens exceed the context window.
@@ -1890,9 +1903,9 @@ class Llama:
             dry_seq_breakers=dry_seq_breakers,
             model=model,
             stopping_criteria=stopping_criteria,
+            logit_bias=logit_bias,
             logits_processor=logits_processor,
             grammar=grammar,
-            logit_bias=logit_bias,
         )
         if stream:
             chunks: Iterator[CreateCompletionStreamResponse] = completion_or_chunks
@@ -1931,9 +1944,9 @@ class Llama:
         dry_seq_breakers: list[str] = ["\n", ":", "\"", "*"],
         model: Optional[str] = None,
         stopping_criteria: Optional[StoppingCriteriaList] = None,
+        logit_bias: Optional[Dict[int, float]] = None,
         logits_processor: Optional[LogitsProcessorList] = None,
         grammar: Optional[LlamaGrammar] = None,
-        logit_bias: Optional[Dict[int, float]] = None,
     ) -> Union[CreateCompletionResponse, Iterator[CreateCompletionStreamResponse]]:
         """Generate text from a prompt.
 
@@ -1967,9 +1980,9 @@ class Llama:
             dry_seq_breakers: Specify an array of sequence breakers for DRY sampling. Only a JSON array of strings is accepted. Default: `['\n', ':', '"', '*']`
             model: The name to use for the model in the completion object.
             stopping_criteria: A list of stopping criteria to use.
+            logit_bias: A logit bias to use.
             logits_processor: A list of logits processors to use.
             grammar: A grammar to use for constrained sampling.
-            logit_bias: A logit bias to use.
 
         Raises:
             ValueError: If the requested tokens exceed the context window.
@@ -2008,9 +2021,9 @@ class Llama:
             dry_seq_breakers=dry_seq_breakers,
             model=model,
             stopping_criteria=stopping_criteria,
+            logit_bias=logit_bias,
             logits_processor=logits_processor,
             grammar=grammar,
-            logit_bias=logit_bias,
         )
 
     def create_chat_completion(
@@ -2045,9 +2058,9 @@ class Llama:
         dry_penalty_last_n:int = 0,
         dry_seq_breakers: list[str] = ["\n", ":", "\"", "*"],
         model: Optional[str] = None,
+        logit_bias: Optional[Dict[int, float]] = None,
         logits_processor: Optional[LogitsProcessorList] = None,
         grammar: Optional[LlamaGrammar] = None,
-        logit_bias: Optional[Dict[int, float]] = None,
         logprobs: Optional[bool] = None,
         top_logprobs: Optional[int] = None,
     ) -> Union[
@@ -2086,9 +2099,9 @@ class Llama:
             dry_penalty_last_n: How many tokens to scan for repetitions. Default: `0`, where `0` is disabled and `-1` is context size.
             dry_seq_breakers: Specify an array of sequence breakers for DRY sampling. Only a JSON array of strings is accepted. Default: `['\n', ':', '"', '*']`
             model: The name to use for the model in the completion object.
+            logit_bias: A logit bias to use.
             logits_processor: A list of logits processors to use.
             grammar: A grammar to use.
-            logit_bias: A logit bias to use.
 
         Returns:
             Generated chat completion or a stream of chat completion chunks.
@@ -2132,9 +2145,9 @@ class Llama:
             dry_penalty_last_n=dry_penalty_last_n,
             dry_seq_breakers=dry_seq_breakers,
             model=model,
+            logit_bias=logit_bias,
             logits_processor=logits_processor,
             grammar=grammar,
-            logit_bias=logit_bias,
         )
 
     def create_chat_completion_openai_v1(
@@ -2199,11 +2212,13 @@ class Llama:
             yarn_beta_slow=self.context_params.yarn_beta_slow,
             yarn_orig_ctx=self.context_params.yarn_orig_ctx,
             defrag_thold=self.context_params.defrag_thold,
+            logits_all=self._logits_all,
             embedding=self.context_params.embeddings,
             offload_kqv=self.context_params.offload_kqv,
             flash_attn=self.context_params.flash_attn,
             op_offload=self.context_params.op_offload,
             swa_full=self.context_params.swa_full,
+            kv_unified= self.context_params.kv_unified,
             # Sampling Params
             no_perf=self.context_params.no_perf,
             last_n_tokens_size=self.last_n_tokens_size,
@@ -2317,6 +2332,10 @@ class Llama:
     def token_pad(self) -> int:
         """Return the padding token."""
         return self._model.token_pad()
+
+    def token_mask(self) -> int:
+        """Return the mask token."""
+        return self._model.token_mask()
 
     def pooling_type(self) -> str:
         """Return the pooling type."""

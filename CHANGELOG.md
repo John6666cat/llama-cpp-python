@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.14]
+
+- feat: Update llama.cpp to [ggml-org/llama.cpp@79e0b68c178656bb0632cb8602d2940b755077f8](https://github.com/ggml-org/llama.cpp/commit/f0d4d176df72734a543c29eef9f942850c13311e)
+
+## [0.3.13]
+
+- feat: Update llama.cpp to [ggml-org/llama.cpp@21c021745d781edf9c44b4972ef6cbbf53b0ecff](https://github.com/ggml-org/llama.cpp/commit/21c021745d781edf9c44b4972ef6cbbf53b0ecff)
+- fix: Better chat format for Qwen2.5-VL by @alcoftTAO in #2040
+
+## [0.3.12]
+
+- feat: Update llama.cpp to [ggml-org/llama.cpp@b8eeb8741d4483daf576498cf90537b4de71633c](https://github.com/ggml-org/llama.cpp/commit/b8eeb8741d4483daf576498cf90537b4de71633c)
+
+## [0.3.11]
+
+- fix: Update reference to `llama_kv_cache_clear` in Llama.embed. Closes #2037 by @abetlen in 9e5a4eaa84156084ed7bbb91e6efcc91dc6217bc
+
+## [0.3.10]
+
+- feat: Update llama.cpp to ggerganov/llama.cpp@28657a8229b5adc6028cf1c4ed62191792d2fdb0
+- feat: Add support for llama.cpp multimodal, add Qwen2.5-VL chat handler by @abetlen in cd548bd0f14210627798237d5c2ea78acfb88ccb
+
 ## [0.3.9]
 
 - feat: Update llama.cpp to ggerganov/llama.cpp@8733e0cf6eefc7c7752297cc22d0836706f4222c
