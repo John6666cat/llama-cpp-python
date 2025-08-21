@@ -183,10 +183,6 @@ llama_opt_params_p_ctypes = ctypes.c_void_p
 llama_memory_i_p = NewType("llama_memory_i_p", int)
 llama_memory_i_p_ctypes = ctypes.c_void_p
 
-# // DEPRECATED (use llama_memory instead)
-llama_kv_cache_p = NewType("llama_kv_cache_p", int)
-llama_kv_cache_p_ctypes = ctypes.c_void_p
-
 # typedef int32_t llama_pos;
 llama_pos = ctypes.c_int32
 # typedef int32_t llama_token;
@@ -1391,8 +1387,6 @@ def llama_n_seq_max(ctx: llama_context_p, /) -> int:
     ...
 
 
-
-
 # DEPRECATED(LLAMA_API int32_t llama_n_ctx_train(const struct llama_model * model), "use llama_model_n_ctx_train instead");
 @ctypes_function("llama_n_ctx_train", [llama_model_p_ctypes], ctypes.c_int32)
 def llama_n_ctx_train(model: llama_model_p, /) -> int:
@@ -1428,11 +1422,6 @@ def llama_n_vocab(model: llama_vocab_p, /) -> int:
 def llama_get_model(ctx: llama_context_p, /) -> Optional[llama_model_p]:
     ...
 
-# DEPRECATED(LLAMA_API struct llama_kv_cache * llama_get_kv_self(struct llama_context * ctx), "use llama_get_memory instead");
-@ctypes_function("llama_get_kv_self", [llama_context_p_ctypes], llama_kv_cache_p_ctypes)
-def llama_get_kv_self(ctx: llama_context_p, /) -> Optional[llama_kv_cache_p]:
-    "use llama_get_memory instead"
-    ...
 
 # LLAMA_API           llama_memory_t   llama_get_memory  (const struct llama_context * ctx);
 @ctypes_function("llama_get_memory", [llama_context_p_ctypes], llama_memory_i_p_ctypes)
