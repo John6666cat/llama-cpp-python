@@ -95,7 +95,6 @@ class ModelSettings(BaseSettings):
     yarn_beta_fast: float = Field(default=32.0)
     yarn_beta_slow: float = Field(default=1.0)
     yarn_orig_ctx: int = Field(default=0)
-    defrag_thold: float = Field(default=-1.0)
     mul_mat_q: bool = Field(
         default=True, description="if true, use experimental mul_mat_q kernels"
     )

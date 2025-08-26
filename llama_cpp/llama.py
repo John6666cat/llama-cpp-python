@@ -88,7 +88,6 @@ class Llama:
         yarn_beta_fast: float = 32.0,
         yarn_beta_slow: float = 1.0,
         yarn_orig_ctx: int = 0,
-        defrag_thold: float = -1.0,
         logits_all: bool = False,
         embedding: bool = False,
         offload_kqv: bool = True,
@@ -172,7 +171,6 @@ class Llama:
             yarn_beta_fast: YaRN low correction dim
             yarn_beta_slow: YaRN high correction dim
             yarn_orig_ctx: YaRN original context size
-            defrag_thold: Defragment the KV cache if holes/size > thold, <= 0 disabled (default)
             logits_all: Return logits for all tokens, not just the last token. Must be True for completion to return logprobs.
             embedding: Embedding mode only.
             offload_kqv: Offload K, Q, V to GPU.
@@ -342,7 +340,6 @@ class Llama:
             yarn_beta_slow if yarn_beta_slow != 0.0 else 0
         )
         self.context_params.yarn_orig_ctx = yarn_orig_ctx if yarn_orig_ctx != 0 else 0
-        self.context_params.defrag_thold = defrag_thold
         self._logits_all = logits_all if draft_model is None else True
         self.context_params.embeddings = embedding  # TODO: Rename to embeddings
         self.context_params.offload_kqv = offload_kqv
@@ -2211,7 +2208,6 @@ class Llama:
             yarn_beta_fast=self.context_params.yarn_beta_fast,
             yarn_beta_slow=self.context_params.yarn_beta_slow,
             yarn_orig_ctx=self.context_params.yarn_orig_ctx,
-            defrag_thold=self.context_params.defrag_thold,
             logits_all=self._logits_all,
             embedding=self.context_params.embeddings,
             offload_kqv=self.context_params.offload_kqv,
