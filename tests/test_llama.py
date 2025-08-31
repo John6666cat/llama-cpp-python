@@ -129,7 +129,6 @@ def test_real_llama(llama_cpp_model_path):
         n_threads=multiprocessing.cpu_count(),
         n_threads_batch=multiprocessing.cpu_count(),
         logits_all=False,
-        flash_attn=True,
         swa_full=True,
         kv_unified=True,
     )
@@ -234,7 +233,6 @@ def test_real_llama_embeddings(llama_cpp_model_path):
         n_threads=multiprocessing.cpu_count(),
         n_threads_batch=multiprocessing.cpu_count(),
         logits_all=False,
-        flash_attn=True,
         swa_full=True,
         kv_unified=True,
         embedding=True

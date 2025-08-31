@@ -79,8 +79,10 @@ class Llama:
         n_threads_batch: Optional[int] = None,
         rope_scaling_type: Optional[
             int
-        ] = llama_cpp.LLAMA_ROPE_SCALING_TYPE_UNSPECIFIED,
+        ] = llama_cpp.llama_rope_scaling_type.LLAMA_ROPE_SCALING_TYPE_UNSPECIFIED,
         pooling_type: int = llama_cpp.LLAMA_POOLING_TYPE_UNSPECIFIED,
+        attention_type: Optional[int] = llama_cpp.llama_attention_type.LLAMA_ATTENTION_TYPE_UNSPECIFIED,
+        flash_attn_type: Optional[int] = llama_cpp.llama_flash_attn_type.LLAMA_FLASH_ATTN_TYPE_AUTO,
         rope_freq_base: float = 0.0,
         rope_freq_scale: float = 0.0,
         yarn_ext_factor: float = -1.0,
@@ -91,7 +93,6 @@ class Llama:
         logits_all: bool = False,
         embedding: bool = False,
         offload_kqv: bool = True,
-        flash_attn: bool = False,
         op_offload: Optional[bool] = None,
         swa_full: Optional[bool] = None,
         kv_unified: Optional[bool] = None,
@@ -164,6 +165,8 @@ class Llama:
             n_threads_batch: Number of threads to use for batch processing
             rope_scaling_type: RoPE scaling type, from `enum llama_rope_scaling_type`. ref: https://github.com/ggml-org/llama.cpp/pull/2054
             pooling_type: Pooling type, from `enum llama_pooling_type`.
+            attention_type: attention type to use for embeddings
+            flash_attn_type: when to enable Flash Attention
             rope_freq_base: RoPE base frequency, 0 = from model
             rope_freq_scale: RoPE frequency scaling factor, 0 = from model
             yarn_ext_factor: YaRN extrapolation mix factor, negative = from model
@@ -174,7 +177,6 @@ class Llama:
             logits_all: Return logits for all tokens, not just the last token. Must be True for completion to return logprobs.
             embedding: Embedding mode only.
             offload_kqv: Offload K, Q, V to GPU.
-            flash_attn: Use flash attention.
             op_offload: whether to offload host tensor operations to device
             swa_full: whether to use full-size SWA cache
             kv_unified: use single unified KV buffer for the KV cache of all sequences
@@ -318,9 +320,23 @@ class Llama:
         self.context_params.rope_scaling_type = (
             rope_scaling_type
             if rope_scaling_type is not None
-            else llama_cpp.LLAMA_ROPE_SCALING_TYPE_UNSPECIFIED
+            else llama_cpp.llama_rope_scaling_type.LLAMA_ROPE_SCALING_TYPE_UNSPECIFIED
         )
-        self.context_params.pooling_type = pooling_type
+        self.context_params.pooling_type = (
+            pooling_type
+            if pooling_type is not None
+            else llama_cpp.LLAMA_POOLING_TYPE_UNSPECIFIED
+        )
+        self.context_params.attention_type = (
+            attention_type
+            if attention_type is not None
+            else llama_cpp.llama_attention_type.LLAMA_ATTENTION_TYPE_UNSPECIFIED
+        )
+        self.context_params.flash_attn_type = (
+            flash_attn_type
+            if flash_attn_type is not None
+            else llama_cpp.llama_flash_attn_type.LLAMA_FLASH_ATTN_TYPE_AUTO
+        )
         self.context_params.rope_freq_base = (
             rope_freq_base if rope_freq_base != 0.0 else 0
         )
@@ -343,7 +359,6 @@ class Llama:
         self._logits_all = logits_all if draft_model is None else True
         self.context_params.embeddings = embedding  # TODO: Rename to embeddings
         self.context_params.offload_kqv = offload_kqv
-        self.context_params.flash_attn = flash_attn
 
         if op_offload is not None:
             self.context_params.op_offload = op_offload
@@ -2201,6 +2216,8 @@ class Llama:
             n_threads_batch=self.context_params.n_threads_batch,
             rope_scaling_type=self.context_params.rope_scaling_type,
             pooling_type=self.context_params.pooling_type,
+            attention_type=self.context_params.attention_type,
+            flash_attn_type=self.context_params.flash_attn_type,
             rope_freq_base=self.context_params.rope_freq_base,
             rope_freq_scale=self.context_params.rope_freq_scale,
             yarn_ext_factor=self.context_params.yarn_ext_factor,
@@ -2211,7 +2228,6 @@ class Llama:
             logits_all=self._logits_all,
             embedding=self.context_params.embeddings,
             offload_kqv=self.context_params.offload_kqv,
-            flash_attn=self.context_params.flash_attn,
             op_offload=self.context_params.op_offload,
             swa_full=self.context_params.swa_full,
             kv_unified= self.context_params.kv_unified,

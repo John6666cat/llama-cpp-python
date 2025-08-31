@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+import enum
 import os
 import pathlib
 
@@ -451,12 +452,13 @@ LLAMA_FTYPE_GUESSED = 1024
 #     LLAMA_ROPE_SCALING_TYPE_LONGROPE    = 3,
 #     LLAMA_ROPE_SCALING_TYPE_MAX_VALUE   = LLAMA_ROPE_SCALING_TYPE_YARN,
 # };
-LLAMA_ROPE_SCALING_TYPE_UNSPECIFIED = -1
-LLAMA_ROPE_SCALING_TYPE_NONE = 0
-LLAMA_ROPE_SCALING_TYPE_LINEAR = 1
-LLAMA_ROPE_SCALING_TYPE_YARN = 2
-LLAMA_ROPE_SCALING_TYPE_LONGROPE = 3
-LLAMA_ROPE_SCALING_TYPE_MAX_VALUE = LLAMA_ROPE_SCALING_TYPE_YARN
+class llama_rope_scaling_type(enum.IntEnum):
+    LLAMA_ROPE_SCALING_TYPE_UNSPECIFIED = -1
+    LLAMA_ROPE_SCALING_TYPE_NONE = 0
+    LLAMA_ROPE_SCALING_TYPE_LINEAR = 1
+    LLAMA_ROPE_SCALING_TYPE_YARN = 2
+    LLAMA_ROPE_SCALING_TYPE_LONGROPE = 3
+    LLAMA_ROPE_SCALING_TYPE_MAX_VALUE = LLAMA_ROPE_SCALING_TYPE_YARN
 
 # enum llama_pooling_type {
 #     LLAMA_POOLING_TYPE_UNSPECIFIED = -1,
@@ -478,10 +480,33 @@ LLAMA_POOLING_TYPE_RANK = 4
 #     LLAMA_ATTENTION_TYPE_CAUSAL      = 0,
 #     LLAMA_ATTENTION_TYPE_NON_CAUSAL  = 1,
 # };
-LLAMA_ATTENTION_TYPE_UNSPECIFIED = -1
-LLAMA_ATTENTION_TYPE_CAUSAL = 0
-LLAMA_ATTENTION_TYPE_NON_CAUSAL = 1
+class llama_attention_type(enum.IntEnum):
+    LLAMA_ATTENTION_TYPE_UNSPECIFIED = -1
+    LLAMA_ATTENTION_TYPE_CAUSAL = 0
+    LLAMA_ATTENTION_TYPE_NON_CAUSAL = 1
 
+# enum llama_flash_attn_type {
+#     LLAMA_FLASH_ATTN_TYPE_AUTO     = -1,
+#     LLAMA_FLASH_ATTN_TYPE_DISABLED = 0,
+#     LLAMA_FLASH_ATTN_TYPE_ENABLED  = 1,
+# };
+class llama_flash_attn_type(enum.IntEnum):
+    LLAMA_FLASH_ATTN_TYPE_AUTO     = -1
+    LLAMA_FLASH_ATTN_TYPE_DISABLED = 0
+    LLAMA_FLASH_ATTN_TYPE_ENABLED  = 1
+
+# LLAMA_API const char * llama_flash_attn_type_name(enum llama_flash_attn_type flash_attn_type);
+@ctypes_function(
+    "llama_flash_attn_type_name",
+    [ctypes.c_int],
+    ctypes.c_char_p,
+)
+def llama_flash_attn_type_name(
+    flash_attn_type: llama_flash_attn_type, /
+) -> bytes:
+    """
+    Gets the name of a llama_flash_attn_type.
+    """
 
 # enum llama_split_mode {
 #     LLAMA_SPLIT_MODE_NONE  = 0, // single GPU
@@ -793,6 +818,7 @@ class llama_model_params(ctypes.Structure):
 #     enum llama_rope_scaling_type rope_scaling_type; // RoPE scaling type, from `enum llama_rope_scaling_type`
 #     enum llama_pooling_type      pooling_type;      // whether to pool (sum) embedding results by sequence id
 #     enum llama_attention_type    attention_type;    // attention type to use for embeddings
+#     enum llama_flash_attn_type   flash_attn_type;   // when to enable Flash Attention
 
 #     // ref: https://github.com/ggml-org/llama.cpp/pull/2054
 #     float    rope_freq_base;   // RoPE base frequency, 0 = from model
@@ -818,7 +844,6 @@ class llama_model_params(ctypes.Structure):
 #     // Keep the booleans together and at the end of the struct to avoid misalignment during copy-by-value.
 #     bool embeddings;  // if true, extract embeddings (together with logits)
 #     bool offload_kqv; // offload the KQV ops (including the KV cache) to GPU
-#     bool flash_attn;  // use flash attention [EXPERIMENTAL]
 #     bool no_perf;     // measure performance timings
 #     bool op_offload;  // offload host tensor operations to device
 #     bool swa_full;    // use full-size SWA cache (https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
@@ -841,6 +866,7 @@ class llama_context_params(ctypes.Structure):
         rope_scaling_type (int): RoPE scaling type, from `enum llama_rope_scaling_type`
         pooling_type (int): whether to pool (sum) embedding results by sequence id (ignored if no pooling layer)
         attention_type (int): attention type to use for embeddings
+        flash_attn_type (int): when to enable Flash Attention
         rope_freq_base (float): RoPE base frequency, 0 = from model
         rope_freq_scale (float): RoPE frequency scaling factor, 0 = from model
         yarn_ext_factor (float): YaRN extrapolation mix factor, negative = from model
@@ -857,7 +883,6 @@ class llama_context_params(ctypes.Structure):
         abort_callback_data (ctypes.ctypes.c_void_p): data for abort_callback
         embeddings (bool): if true, extract embeddings (together with logits)
         offload_kqv (bool): whether to offload the KQV ops (including the KV cache) to GPU
-        flash_attn (bool): whether to use flash attention
         no_perf (bool): whether to measure performance timings
         op_offload(bool): whether to offload host tensor operations to device
         swa_full(bool): whether to use full-size SWA cache
@@ -874,6 +899,7 @@ class llama_context_params(ctypes.Structure):
         rope_scaling_type: int
         pooling_type: int
         attention_type: int
+        flash_attn_type: int
         rope_freq_base: float
         rope_freq_scale: float
         yarn_ext_factor: float
@@ -890,7 +916,6 @@ class llama_context_params(ctypes.Structure):
         abort_callback_data: ctypes.c_void_p
         embeddings: bool
         offload_kqv: bool
-        flash_attn: bool
         no_perf: bool
         op_offload:bool
         swa_full:bool
@@ -906,6 +931,7 @@ class llama_context_params(ctypes.Structure):
         ("rope_scaling_type", ctypes.c_int),
         ("pooling_type", ctypes.c_int),
         ("attention_type", ctypes.c_int),
+        ("flash_attn_type", ctypes.c_int),
         ("rope_freq_base", ctypes.c_float),
         ("rope_freq_scale", ctypes.c_float),
         ("yarn_ext_factor", ctypes.c_float),
@@ -922,7 +948,6 @@ class llama_context_params(ctypes.Structure):
         ("abort_callback_data", ctypes.c_void_p),
         ("embeddings", ctypes.c_bool),
         ("offload_kqv", ctypes.c_bool),
-        ("flash_attn", ctypes.c_bool),
         ("no_perf", ctypes.c_bool),
         ("op_offload", ctypes.c_bool),
         ("swa_full", ctypes.c_bool),
