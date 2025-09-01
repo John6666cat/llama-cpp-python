@@ -405,13 +405,6 @@ class LlamaContext:
         # )
         raise NotImplementedError("sample_repetition_penalties is not implemented in llama.cpp")
 
-    def sample_softmax(self, candidates: "_LlamaTokenDataArray"):
-        # llama_cpp.llama_sample_softmax(
-        #     self.ctx,
-        #     llama_cpp.byref(candidates.candidates),
-        # )
-        raise NotImplementedError("sample_softmax is not implemented in llama.cpp")
-
     def sample_top_k(self, candidates: "_LlamaTokenDataArray", k: int, min_keep: int):
         # llama_cpp.llama_sample_top_k(
         #     self.ctx, llama_cpp.byref(candidates.candidates), k, min_keep
@@ -592,6 +585,7 @@ class LlamaTokenDataArray:
         self.candidates = llama_cpp.llama_token_data_array(
             data=self.candidates_data.ctypes.data_as(llama_cpp.llama_token_data_p),
             size=self.n_vocab,
+            selected=-1,
             sorted=False,
         )
         self.default_candidates_data_id = np.arange(self.n_vocab, dtype=np.intc)  # type: ignore
@@ -729,7 +723,6 @@ class LlamaSamplingContext:
             ctx_main.sample_grammar(token_data_array, self.grammar)
 
         if self.params.temp < 0:
-            ctx_main.sample_softmax(token_data_array)
             id = token_data_array.candidates_data.id[0]
         elif self.params.temp == 0:
             id = ctx_main.sample_token_greedy(token_data_array)
@@ -825,10 +818,6 @@ class LlamaSampler:
 
     def add_dist(self, seed: int):
         sampler = llama_cpp.llama_sampler_init_dist(seed)
-        self._add_sampler(sampler)
-
-    def add_softmax(self):
-        sampler = llama_cpp.llama_sampler_init_softmax()
         self._add_sampler(sampler)
 
     def add_top_k(self, k: int):
