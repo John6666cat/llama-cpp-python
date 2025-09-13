@@ -171,6 +171,20 @@ class LlamaProxy:
                 chat_handler = llama_cpp.llama_chat_format.MiniCPMv26ChatHandler(
                     clip_model_path=settings.clip_model_path, verbose=settings.verbose
                 )
+        elif settings.chat_format == "gemma3":
+            assert settings.clip_model_path is not None, "clip model not found"
+            if settings.hf_model_repo_id is not None:
+                chat_handler = (
+                    llama_cpp.llama_chat_format.Gemma3ChatHandler.from_pretrained(
+                        repo_id=settings.hf_model_repo_id,
+                        filename=settings.clip_model_path,
+                        verbose=settings.verbose,
+                    )
+                )
+            else:
+                chat_handler = llama_cpp.llama_chat_format.Gemma3ChatHandler(
+                    clip_model_path=settings.clip_model_path, verbose=settings.verbose
+                )
         elif settings.chat_format == "qwen2.5-vl":
             assert settings.clip_model_path is not None, "clip model not found"
             if settings.hf_model_repo_id is not None:
@@ -267,6 +281,9 @@ class LlamaProxy:
             n_threads=settings.n_threads,
             n_threads_batch=settings.n_threads_batch,
             rope_scaling_type=settings.rope_scaling_type,
+            pooling_type=settings.pooling_type,
+            attention_type=settings.attention_type,
+            flash_attn_type=settings.flash_attn_type,
             rope_freq_base=settings.rope_freq_base,
             rope_freq_scale=settings.rope_freq_scale,
             yarn_ext_factor=settings.yarn_ext_factor,
@@ -274,12 +291,10 @@ class LlamaProxy:
             yarn_beta_fast=settings.yarn_beta_fast,
             yarn_beta_slow=settings.yarn_beta_slow,
             yarn_orig_ctx=settings.yarn_orig_ctx,
-            defrag_thold=settings.defrag_thold,
             mul_mat_q=settings.mul_mat_q,
             logits_all=settings.logits_all,
             embedding=settings.embedding,
             offload_kqv=settings.offload_kqv,
-            flash_attn=settings.flash_attn,
             op_offload=settings.op_offload,
             swa_full=settings.swa_full,
             kv_unified=settings.kv_unified,

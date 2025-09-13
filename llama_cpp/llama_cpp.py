@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+import enum
 import os
 import pathlib
 
@@ -183,10 +184,6 @@ llama_opt_params_p_ctypes = ctypes.c_void_p
 llama_memory_i_p = NewType("llama_memory_i_p", int)
 llama_memory_i_p_ctypes = ctypes.c_void_p
 
-# // DEPRECATED (use llama_memory instead)
-llama_kv_cache_p = NewType("llama_kv_cache_p", int)
-llama_kv_cache_p_ctypes = ctypes.c_void_p
-
 # typedef int32_t llama_pos;
 llama_pos = ctypes.c_int32
 # typedef int32_t llama_token;
@@ -262,6 +259,7 @@ LLAMA_VOCAB_TYPE_PLAMO2 = 6
 #     LLAMA_VOCAB_PRE_TYPE_SEED_CODER     = 35,
 #     LLAMA_VOCAB_PRE_TYPE_HUNYUAN        = 36,
 #     LLAMA_VOCAB_PRE_TYPE_KIMI_K2        = 37,
+#     LLAMA_VOCAB_PRE_TYPE_HUNYUAN_DENSE  = 38,
 # };
 LLAMA_VOCAB_PRE_TYPE_DEFAULT = 0
 LLAMA_VOCAB_PRE_TYPE_LLAMA3 = 1
@@ -301,6 +299,7 @@ LLAMA_VOCAB_PRE_TYPE_PIXTRAL = 34
 LLAMA_VOCAB_PRE_TYPE_SEED_CODER = 35
 LLAMA_VOCAB_PRE_TYPE_HUNYUAN  = 36
 LLAMA_VOCAB_PRE_TYPE_KIMI_K2  = 37
+LLAMA_VOCAB_PRE_TYPE_HUNYUAN_DENSE = 38
 
 
 # // note: these values should be synchronized with ggml_rope
@@ -403,6 +402,7 @@ LLAMA_TOKEN_ATTR_SINGLE_WORD = 1 << 9
 #     //LLAMA_FTYPE_MOSTLY_Q4_0_8_8      = 35, // removed from gguf files, use Q4_0 and runtime repack
 #     LLAMA_FTYPE_MOSTLY_TQ1_0         = 36, // except 1d tensors
 #     LLAMA_FTYPE_MOSTLY_TQ2_0         = 37, // except 1d tensors
+#     LLAMA_FTYPE_MOSTLY_MXFP4_MOE     = 38, // except 1d tensors
 #
 #     LLAMA_FTYPE_GUESSED = 1024, // not specified in the model file
 # };
@@ -441,6 +441,7 @@ LLAMA_FTYPE_MOSTLY_BF16 = 32
 # LLAMA_FTYPE_MOSTLY_Q4_0_8_8 = 35
 LLAMA_FTYPE_MOSTLY_TQ1_0 = 36
 LLAMA_FTYPE_MOSTLY_TQ2_0 = 37
+LLAMA_FTYPE_MOSTLY_MXFP4_MOE = 38
 LLAMA_FTYPE_GUESSED = 1024
 
 # enum llama_rope_scaling_type {
@@ -451,12 +452,13 @@ LLAMA_FTYPE_GUESSED = 1024
 #     LLAMA_ROPE_SCALING_TYPE_LONGROPE    = 3,
 #     LLAMA_ROPE_SCALING_TYPE_MAX_VALUE   = LLAMA_ROPE_SCALING_TYPE_YARN,
 # };
-LLAMA_ROPE_SCALING_TYPE_UNSPECIFIED = -1
-LLAMA_ROPE_SCALING_TYPE_NONE = 0
-LLAMA_ROPE_SCALING_TYPE_LINEAR = 1
-LLAMA_ROPE_SCALING_TYPE_YARN = 2
-LLAMA_ROPE_SCALING_TYPE_LONGROPE = 3
-LLAMA_ROPE_SCALING_TYPE_MAX_VALUE = LLAMA_ROPE_SCALING_TYPE_YARN
+class llama_rope_scaling_type(enum.IntEnum):
+    LLAMA_ROPE_SCALING_TYPE_UNSPECIFIED = -1
+    LLAMA_ROPE_SCALING_TYPE_NONE = 0
+    LLAMA_ROPE_SCALING_TYPE_LINEAR = 1
+    LLAMA_ROPE_SCALING_TYPE_YARN = 2
+    LLAMA_ROPE_SCALING_TYPE_LONGROPE = 3
+    LLAMA_ROPE_SCALING_TYPE_MAX_VALUE = LLAMA_ROPE_SCALING_TYPE_YARN
 
 # enum llama_pooling_type {
 #     LLAMA_POOLING_TYPE_UNSPECIFIED = -1,
@@ -478,10 +480,33 @@ LLAMA_POOLING_TYPE_RANK = 4
 #     LLAMA_ATTENTION_TYPE_CAUSAL      = 0,
 #     LLAMA_ATTENTION_TYPE_NON_CAUSAL  = 1,
 # };
-LLAMA_ATTENTION_TYPE_UNSPECIFIED = -1
-LLAMA_ATTENTION_TYPE_CAUSAL = 0
-LLAMA_ATTENTION_TYPE_NON_CAUSAL = 1
+class llama_attention_type(enum.IntEnum):
+    LLAMA_ATTENTION_TYPE_UNSPECIFIED = -1
+    LLAMA_ATTENTION_TYPE_CAUSAL = 0
+    LLAMA_ATTENTION_TYPE_NON_CAUSAL = 1
 
+# enum llama_flash_attn_type {
+#     LLAMA_FLASH_ATTN_TYPE_AUTO     = -1,
+#     LLAMA_FLASH_ATTN_TYPE_DISABLED = 0,
+#     LLAMA_FLASH_ATTN_TYPE_ENABLED  = 1,
+# };
+class llama_flash_attn_type(enum.IntEnum):
+    LLAMA_FLASH_ATTN_TYPE_AUTO     = -1
+    LLAMA_FLASH_ATTN_TYPE_DISABLED = 0
+    LLAMA_FLASH_ATTN_TYPE_ENABLED  = 1
+
+# LLAMA_API const char * llama_flash_attn_type_name(enum llama_flash_attn_type flash_attn_type);
+@ctypes_function(
+    "llama_flash_attn_type_name",
+    [ctypes.c_int],
+    ctypes.c_char_p,
+)
+def llama_flash_attn_type_name(
+    flash_attn_type: llama_flash_attn_type, /
+) -> bytes:
+    """
+    Gets the name of a llama_flash_attn_type.
+    """
 
 # enum llama_split_mode {
 #     LLAMA_SPLIT_MODE_NONE  = 0, // single GPU
@@ -527,7 +552,7 @@ llama_token_data_p = ctypes.POINTER(llama_token_data)
 #     llama_token_data * data;
 #     size_t size;
 #     int64_t selected; // this is the index in the data array (i.e. not the token id)
-#     bool sorted;
+#     bool sorted;      // note: do not assume the data is sorted - always check this flag
 # } llama_token_data_array;
 class llama_token_data_array(ctypes.Structure):
     """Used to sample tokens given logits
@@ -721,10 +746,11 @@ class llama_model_tensor_buft_override(ctypes.Structure):
 
 
 #     // Keep the booleans together to avoid misalignment during copy-by-value.
-#     bool vocab_only;    // only load the vocabulary, no weights
-#     bool use_mmap;      // use mmap if possible
-#     bool use_mlock;     // force system to keep model in RAM
-#     bool check_tensors; // validate model tensor data
+#     bool vocab_only;      // only load the vocabulary, no weights
+#     bool use_mmap;        // use mmap if possible
+#     bool use_mlock;       // force system to keep model in RAM
+#     bool check_tensors;   // validate model tensor data
+#     bool use_extra_bufts; // use extra buffer types (used for weight repacking)
 # };
 class llama_model_params(ctypes.Structure):
     """Parameters for llama_model
@@ -742,7 +768,8 @@ class llama_model_params(ctypes.Structure):
         vocab_only (bool): only load the vocabulary, no weights
         use_mmap (bool): use mmap if possible
         use_mlock (bool): force system to keep model in RAM
-        check_tensors (bool): validate model tensor data"""
+        check_tensors (bool): validate model tensor data
+        use_extra_bufts (bool): use extra buffer types (used for weight repacking)"""
 
     if TYPE_CHECKING:
         devices: CtypesArray[ctypes.c_void_p]  # NOTE: unused
@@ -758,6 +785,7 @@ class llama_model_params(ctypes.Structure):
         use_mmap: bool
         use_mlock: bool
         check_tensors: bool
+        use_extra_bufts: bool
 
     _fields_ = [
         ("devices", ctypes.c_void_p), # NOTE: unnused
@@ -773,6 +801,7 @@ class llama_model_params(ctypes.Structure):
         ("use_mmap", ctypes.c_bool),
         ("use_mlock", ctypes.c_bool),
         ("check_tensors", ctypes.c_bool),
+        ("use_extra_bufts", ctypes.c_bool),
     ]
 
 
@@ -789,6 +818,7 @@ class llama_model_params(ctypes.Structure):
 #     enum llama_rope_scaling_type rope_scaling_type; // RoPE scaling type, from `enum llama_rope_scaling_type`
 #     enum llama_pooling_type      pooling_type;      // whether to pool (sum) embedding results by sequence id
 #     enum llama_attention_type    attention_type;    // attention type to use for embeddings
+#     enum llama_flash_attn_type   flash_attn_type;   // when to enable Flash Attention
 
 #     // ref: https://github.com/ggml-org/llama.cpp/pull/2054
 #     float    rope_freq_base;   // RoPE base frequency, 0 = from model
@@ -798,7 +828,7 @@ class llama_model_params(ctypes.Structure):
 #     float    yarn_beta_fast;   // YaRN low correction dim
 #     float    yarn_beta_slow;   // YaRN high correction dim
 #     uint32_t yarn_orig_ctx;    // YaRN original context size
-#     float    defrag_thold;     // defragment the KV cache if holes/size > thold, < 0 disabled (default)
+#     float    defrag_thold;     // [DEPRECATED] defragment the KV cache if holes/size > thold, < 0 disabled (default)
 
 #     ggml_backend_sched_eval_callback cb_eval;
 #     void * cb_eval_user_data;
@@ -814,7 +844,6 @@ class llama_model_params(ctypes.Structure):
 #     // Keep the booleans together and at the end of the struct to avoid misalignment during copy-by-value.
 #     bool embeddings;  // if true, extract embeddings (together with logits)
 #     bool offload_kqv; // offload the KQV ops (including the KV cache) to GPU
-#     bool flash_attn;  // use flash attention [EXPERIMENTAL]
 #     bool no_perf;     // measure performance timings
 #     bool op_offload;  // offload host tensor operations to device
 #     bool swa_full;    // use full-size SWA cache (https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
@@ -837,6 +866,7 @@ class llama_context_params(ctypes.Structure):
         rope_scaling_type (int): RoPE scaling type, from `enum llama_rope_scaling_type`
         pooling_type (int): whether to pool (sum) embedding results by sequence id (ignored if no pooling layer)
         attention_type (int): attention type to use for embeddings
+        flash_attn_type (int): when to enable Flash Attention
         rope_freq_base (float): RoPE base frequency, 0 = from model
         rope_freq_scale (float): RoPE frequency scaling factor, 0 = from model
         yarn_ext_factor (float): YaRN extrapolation mix factor, negative = from model
@@ -844,7 +874,7 @@ class llama_context_params(ctypes.Structure):
         yarn_beta_fast (float): YaRN low correction dim
         yarn_beta_slow (float): YaRN high correction dim
         yarn_orig_ctx (int): YaRN original context size
-        defrag_thold (float): defragment the KV cache if holes/size > thold, <= 0 disabled (default)
+        defrag_thold (float): [DEPRECATED] defragment the KV cache if holes/size > thold, <= 0 disabled (default)
         cb_eval (ggml_backend_sched_eval_callback): callback for scheduling eval
         cb_eval_user_data (ctypes.ctypes.c_void_p): user data for cb_eval
         type_k (int): data type for K cache
@@ -853,7 +883,6 @@ class llama_context_params(ctypes.Structure):
         abort_callback_data (ctypes.ctypes.c_void_p): data for abort_callback
         embeddings (bool): if true, extract embeddings (together with logits)
         offload_kqv (bool): whether to offload the KQV ops (including the KV cache) to GPU
-        flash_attn (bool): whether to use flash attention
         no_perf (bool): whether to measure performance timings
         op_offload(bool): whether to offload host tensor operations to device
         swa_full(bool): whether to use full-size SWA cache
@@ -870,6 +899,7 @@ class llama_context_params(ctypes.Structure):
         rope_scaling_type: int
         pooling_type: int
         attention_type: int
+        flash_attn_type: int
         rope_freq_base: float
         rope_freq_scale: float
         yarn_ext_factor: float
@@ -886,7 +916,6 @@ class llama_context_params(ctypes.Structure):
         abort_callback_data: ctypes.c_void_p
         embeddings: bool
         offload_kqv: bool
-        flash_attn: bool
         no_perf: bool
         op_offload:bool
         swa_full:bool
@@ -902,6 +931,7 @@ class llama_context_params(ctypes.Structure):
         ("rope_scaling_type", ctypes.c_int),
         ("pooling_type", ctypes.c_int),
         ("attention_type", ctypes.c_int),
+        ("flash_attn_type", ctypes.c_int),
         ("rope_freq_base", ctypes.c_float),
         ("rope_freq_scale", ctypes.c_float),
         ("yarn_ext_factor", ctypes.c_float),
@@ -918,7 +948,6 @@ class llama_context_params(ctypes.Structure):
         ("abort_callback_data", ctypes.c_void_p),
         ("embeddings", ctypes.c_bool),
         ("offload_kqv", ctypes.c_bool),
-        ("flash_attn", ctypes.c_bool),
         ("no_perf", ctypes.c_bool),
         ("op_offload", ctypes.c_bool),
         ("swa_full", ctypes.c_bool),
@@ -1383,8 +1412,6 @@ def llama_n_seq_max(ctx: llama_context_p, /) -> int:
     ...
 
 
-
-
 # DEPRECATED(LLAMA_API int32_t llama_n_ctx_train(const struct llama_model * model), "use llama_model_n_ctx_train instead");
 @ctypes_function("llama_n_ctx_train", [llama_model_p_ctypes], ctypes.c_int32)
 def llama_n_ctx_train(model: llama_model_p, /) -> int:
@@ -1420,11 +1447,6 @@ def llama_n_vocab(model: llama_vocab_p, /) -> int:
 def llama_get_model(ctx: llama_context_p, /) -> Optional[llama_model_p]:
     ...
 
-# DEPRECATED(LLAMA_API struct llama_kv_cache * llama_get_kv_self(struct llama_context * ctx), "use llama_get_memory instead");
-@ctypes_function("llama_get_kv_self", [llama_context_p_ctypes], llama_kv_cache_p_ctypes)
-def llama_get_kv_self(ctx: llama_context_p, /) -> Optional[llama_kv_cache_p]:
-    "use llama_get_memory instead"
-    ...
 
 # LLAMA_API           llama_memory_t   llama_get_memory  (const struct llama_context * ctx);
 @ctypes_function("llama_get_memory", [llama_context_p_ctypes], llama_memory_i_p_ctypes)
@@ -1668,6 +1690,14 @@ def llama_model_is_recurrent(model: llama_model_p, /) -> bool:
     ...
 
 
+# // Returns true if the model is diffusion-based (like LLaDA, Dream, etc.)
+# LLAMA_API bool llama_model_is_diffusion(const struct llama_model * model);
+@ctypes_function("llama_model_is_diffusion", [llama_model_p_ctypes], ctypes.c_bool)
+def llama_model_is_diffusion(model: llama_model_p, /) -> bool:
+    """Returns true if the model is diffusion-based (like LLaDA, Dream, etc.)"""
+    ...
+
+
 # // Returns 0 on success
 # LLAMA_API uint32_t llama_model_quantize(
 #         const char * fname_inp,
@@ -1707,6 +1737,93 @@ def llama_adapter_lora_init(
     ...
 
 
+# // Functions to access the adapter's GGUF metadata scalar values
+# // - The functions return the length of the string on success, or -1 on failure
+# // - The output string is always null-terminated and cleared on failure
+# // - When retrieving a string, an extra byte must be allocated to account for the null terminator
+# // - GGUF array values are not supported by these functions
+
+# // Get metadata value as a string by key name
+# LLAMA_API int32_t llama_adapter_meta_val_str(const struct llama_adapter_lora * adapter, const char * key, char * buf, size_t buf_size);
+@ctypes_function(
+    "llama_adapter_meta_val_str",
+    [
+        llama_adapter_lora_p_ctypes,
+        ctypes.c_char_p,
+        ctypes.c_char_p,
+        ctypes.c_size_t,
+    ],
+    ctypes.c_int32,
+)
+def llama_adapter_meta_val_str(
+    adapter: llama_adapter_lora_p,
+    key: ctypes.c_char_p,
+    buf: ctypes.c_char_p,
+    buf_size: ctypes.c_size_t,
+    /,
+) -> int:
+    """Get metadata value as a string by key name"""
+    ...
+
+
+# // Get the number of metadata key/value pairs
+# LLAMA_API int32_t llama_adapter_meta_count(const struct llama_adapter_lora * adapter);
+@ctypes_function(
+    "llama_adapter_meta_count",
+    [llama_adapter_lora_p_ctypes],
+    ctypes.c_int32,
+)
+def llama_adapter_meta_count(adapter: llama_adapter_lora_p) -> int:
+    """Get the number of metadata key/value pairs"""
+    ...
+
+
+# // Get metadata key name by index
+# LLAMA_API int32_t llama_adapter_meta_key_by_index(const struct llama_adapter_lora * adapter, int32_t i, char * buf, size_t buf_size);
+@ctypes_function(
+    "llama_adapter_meta_key_by_index",
+    [
+        llama_adapter_lora_p_ctypes,
+        ctypes.c_int32,
+        ctypes.c_char_p,
+        ctypes.c_size_t,
+    ],
+    ctypes.c_int32,
+)
+def llama_adapter_meta_key_by_index(
+    adapter: llama_adapter_lora_p,
+    i: ctypes.c_int32,
+    buf: ctypes.c_char_p,
+    buf_size: ctypes.c_size_t,
+    /,
+) -> int:
+    """Get metadata key name by index"""
+    ...
+
+
+# // Get metadata value as a string by index
+# LLAMA_API int32_t llama_adapter_meta_val_str_by_index(const struct llama_adapter_lora * adapter, int32_t i, char * buf, size_t buf_size);
+@ctypes_function(
+    "llama_adapter_meta_val_str_by_index",
+    [
+        llama_adapter_lora_p_ctypes,
+        ctypes.c_int32,
+        ctypes.c_char_p,
+        ctypes.c_size_t,
+    ],
+    ctypes.c_int32,
+)
+def llama_adapter_meta_val_str_by_index(
+    adapter: llama_adapter_lora_p,
+    i: ctypes.c_int32,
+    buf: ctypes.c_char_p,
+    buf_size: ctypes.c_size_t,
+    /,
+) -> int:
+    """Get metadata value as a string by index"""
+    ...
+
+
 # // Manually free a LoRA adapter
 # // Note: loaded adapters will be free when the associated model is deleted
 # LLAMA_API void llama_adapter_lora_free(struct llama_adapter_lora * adapter);
@@ -1716,6 +1833,27 @@ def llama_adapter_lora_init(
     None,
 )
 def llama_adapter_lora_free(adapter: llama_adapter_lora_p, /):
+    ...
+
+
+# // Get the invocation tokens if the current lora is an alora
+# LLAMA_API uint64_t            llama_adapter_get_alora_n_invocation_tokens(const struct llama_adapter_lora * adapter);
+@ctypes_function(
+    "llama_adapter_get_alora_n_invocation_tokens",
+    [llama_adapter_lora_p_ctypes],
+    ctypes.c_uint64,
+)
+def llama_adapter_get_alora_n_invocation_tokens(adapter: llama_adapter_lora_p, /) -> ctypes.c_uint64:
+    ...
+
+
+# LLAMA_API const llama_token * llama_adapter_get_alora_invocation_tokens  (const struct llama_adapter_lora * adapter);
+@ctypes_function(
+    "llama_adapter_get_alora_invocation_tokens",
+    [llama_adapter_lora_p_ctypes],
+    ctypes.c_uint64,
+)
+def llama_adapter_get_alora_invocation_tokens(adapter: llama_adapter_lora_p, /) -> llama_token_p:
     ...
 
 
@@ -2619,6 +2757,7 @@ def llama_synchronize(ctx: llama_context_p, /):
 # // in the order they have appeared in the batch.
 # // Rows: number of tokens for which llama_batch.logits[i] != 0
 # // Cols: n_vocab
+# // TODO: deprecate in favor of llama_get_logits_ith() (ref: https://github.com/ggml-org/llama.cpp/pull/14853#issuecomment-3113143522)
 # LLAMA_API float * llama_get_logits(struct llama_context * ctx);
 @ctypes_function(
     "llama_get_logits", [llama_context_p_ctypes], ctypes.POINTER(ctypes.c_float)
@@ -2659,6 +2798,7 @@ def llama_get_logits_ith(
 # // in the order they have appeared in the batch.
 # // shape: [n_outputs*n_embd]
 # // Otherwise, returns NULL.
+# // TODO: deprecate in favor of llama_get_embeddings_ith() (ref: https://github.com/ggml-org/llama.cpp/pull/14853#issuecomment-3113143522)
 # LLAMA_API float * llama_get_embeddings(struct llama_context * ctx);
 @ctypes_function(
     "llama_get_embeddings", [llama_context_p_ctypes], ctypes.POINTER(ctypes.c_float)
@@ -3261,7 +3401,7 @@ def llama_token_to_piece(
     "llama_detokenize",
     [
         llama_model_p_ctypes,
-        ctypes.POINTER(llama_token),
+        llama_token_p,
         ctypes.c_int32,
         ctypes.c_char_p,
         ctypes.c_int32,
@@ -3623,15 +3763,6 @@ def llama_sampler_init_dist(seed: int) -> llama_sampler_p:
     ...
 
 
-# /// @details Sorts candidate tokens by their logits in descending order and calculate probabilities based on logits.
-# /// NOTE: Avoid using on the full vocabulary as the sorting can become slow. For example, apply top-k or top-p sampling first.
-# DEPRECATED(LLAMA_API struct llama_sampler * llama_sampler_init_softmax    (void),
-#     "will be removed in the future (see https://github.com/ggerganov/llama.cpp/pull/9896#discussion_r1800920915)");
-@ctypes_function("llama_sampler_init_softmax", [], llama_sampler_p_ctypes)
-def llama_sampler_init_softmax() -> llama_sampler_p:
-    ...
-
-
 # /// @details Top-K sampling described in academic paper "The Curious Case of Neural Text Degeneration" https://arxiv.org/abs/1904.09751
 # /// Setting k <= 0 makes this a noop
 # LLAMA_API struct llama_sampler * llama_sampler_init_top_k      (int32_t k);
@@ -3797,7 +3928,7 @@ def llama_sampler_init_grammar(
         ctypes.c_char_p,
         ctypes.POINTER(ctypes.c_char_p),
         ctypes.c_size_t,
-        ctypes.POINTER(llama_token),
+        llama_token_p,
         ctypes.c_size_t,
     ],
     llama_sampler_p_ctypes,
