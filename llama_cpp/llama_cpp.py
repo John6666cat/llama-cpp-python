@@ -1836,6 +1836,27 @@ def llama_adapter_lora_free(adapter: llama_adapter_lora_p, /):
     ...
 
 
+# // Get the invocation tokens if the current lora is an alora
+# LLAMA_API uint64_t            llama_adapter_get_alora_n_invocation_tokens(const struct llama_adapter_lora * adapter);
+@ctypes_function(
+    "llama_adapter_get_alora_n_invocation_tokens",
+    [llama_adapter_lora_p_ctypes],
+    ctypes.c_uint64,
+)
+def llama_adapter_get_alora_n_invocation_tokens(adapter: llama_adapter_lora_p, /) -> ctypes.c_uint64:
+    ...
+
+
+# LLAMA_API const llama_token * llama_adapter_get_alora_invocation_tokens  (const struct llama_adapter_lora * adapter);
+@ctypes_function(
+    "llama_adapter_get_alora_invocation_tokens",
+    [llama_adapter_lora_p_ctypes],
+    ctypes.c_uint64,
+)
+def llama_adapter_get_alora_invocation_tokens(adapter: llama_adapter_lora_p, /) -> llama_token_p:
+    ...
+
+
 # // The following functions operate on a llama_context, hence the naming: llama_verb_...
 
 
@@ -3380,7 +3401,7 @@ def llama_token_to_piece(
     "llama_detokenize",
     [
         llama_model_p_ctypes,
-        ctypes.POINTER(llama_token),
+        llama_token_p,
         ctypes.c_int32,
         ctypes.c_char_p,
         ctypes.c_int32,
@@ -3907,7 +3928,7 @@ def llama_sampler_init_grammar(
         ctypes.c_char_p,
         ctypes.POINTER(ctypes.c_char_p),
         ctypes.c_size_t,
-        ctypes.POINTER(llama_token),
+        llama_token_p,
         ctypes.c_size_t,
     ],
     llama_sampler_p_ctypes,

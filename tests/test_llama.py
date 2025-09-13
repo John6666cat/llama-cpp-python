@@ -86,7 +86,6 @@ def test_real_model(llama_cpp_model_path):
     cparams.n_ubatch = 16
     cparams.n_threads = multiprocessing.cpu_count()
     cparams.n_threads_batch = multiprocessing.cpu_count()
-    cparams.flash_attn = True
     cparams.swa_full = True
     cparams.kv_unified = True
 
