@@ -3537,6 +3537,7 @@ class MiniCPMv26ChatHandler(Llava15ChatHandler):
     DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant."
 
     CHAT_FORMAT = (
+        "{% set image_count = namespace(value=0) %}"
         "{% for message in messages %}"
         "{% if loop.first and messages[0]['role'] != 'system' %}"
         "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n"
@@ -3546,10 +3547,12 @@ class MiniCPMv26ChatHandler(Llava15ChatHandler):
         "{% for content in message['content'] %}"
         "{% if content.type == 'image_url' %}"
         "{% if content.image_url is string %}"
-        "{{ content.image_url }}"
+        "{% set image_count.value = image_count.value + 1 %}"
+        "<image_id>{{ image_count.value }}</image_id>: <image>{{ content.image_url }}</image>"
         "{% endif %}"
         "{% if content.image_url is mapping %}"
-        "{{ content.image_url.url }}"
+        "{% set image_count.value = image_count.value + 1 %}"
+        "<image_id>{{ image_count.value }}</image_id>: <image>{{ content.image_url.url }}</image>"
         "{% endif %}"
         "{% endif %}"
         "{% endfor %}"
