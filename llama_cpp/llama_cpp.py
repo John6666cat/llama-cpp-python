@@ -81,7 +81,8 @@ ctypes_function = ctypes_function_for_shared_library(_lib)
 #     GGML_TYPE_BF16    = 30,
 #     GGML_TYPE_TQ1_0   = 34,
 #     GGML_TYPE_TQ2_0   = 35,
-#     GGML_TYPE_COUNT   = 39
+#     GGML_TYPE_MXFP4   = 39, // MXFP4 (1 block)
+#     GGML_TYPE_COUNT   = 40
 # };
 GGML_TYPE_F32 = 0
 GGML_TYPE_F16 = 1
@@ -114,7 +115,8 @@ GGML_TYPE_IQ1_M = 29
 GGML_TYPE_BF16 = 30
 GGML_TYPE_TQ1_0 = 34
 GGML_TYPE_TQ2_0 = 35
-GGML_TYPE_COUNT = 39
+GGML_TYPE_MXFP4 = 39
+GGML_TYPE_COUNT = 40
 
 # from ggml-backend.h
 # typedef bool (*ggml_backend_sched_eval_callback)(struct ggml_tensor * t, bool ask, void * user_data);
@@ -260,6 +262,7 @@ LLAMA_VOCAB_TYPE_PLAMO2 = 6
 #     LLAMA_VOCAB_PRE_TYPE_HUNYUAN        = 36,
 #     LLAMA_VOCAB_PRE_TYPE_KIMI_K2        = 37,
 #     LLAMA_VOCAB_PRE_TYPE_HUNYUAN_DENSE  = 38,
+#     LLAMA_VOCAB_PRE_TYPE_GROK_2         = 39,
 # };
 LLAMA_VOCAB_PRE_TYPE_DEFAULT = 0
 LLAMA_VOCAB_PRE_TYPE_LLAMA3 = 1
@@ -300,6 +303,7 @@ LLAMA_VOCAB_PRE_TYPE_SEED_CODER = 35
 LLAMA_VOCAB_PRE_TYPE_HUNYUAN  = 36
 LLAMA_VOCAB_PRE_TYPE_KIMI_K2  = 37
 LLAMA_VOCAB_PRE_TYPE_HUNYUAN_DENSE = 38
+LLAMA_VOCAB_PRE_TYPE_GROK_2 = 39
 
 
 # // note: these values should be synchronized with ggml_rope
