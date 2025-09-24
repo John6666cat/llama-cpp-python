@@ -54,7 +54,7 @@ jobs:
         if: steps.model-cache.outputs.cache-hit != 'true'
         run: |
           pip install huggingface-hub
-          huggingface-cli download ${{ env.REPO_ID }} ${{ env.MODEL_FILE }}
+          hf download ${{ env.REPO_ID }} ${{ env.MODEL_FILE }}
         shell: bash
 
       - name: Install dependencies
@@ -110,7 +110,7 @@ jobs:
         if: steps.model-cache.outputs.cache-hit != 'true'
         run: |
           pip install huggingface-hub
-          huggingface-cli download ${{ env.REPO_ID }} ${{ env.MODEL_FILE }}
+          hf download ${{ env.REPO_ID }} ${{ env.MODEL_FILE }}
         shell: bash
 
       - name: Install dependencies (macOS Metal)
