@@ -48,7 +48,7 @@ class LlamaModel:
             raise ValueError(f"Model path does not exist: {path_model}")
 
         with suppress_stdout_stderr(disable=verbose):
-            model = llama_cpp.llama_load_model_from_file(
+            model = llama_cpp.llama_model_load_from_file(
                 self.path_model.encode("utf-8"), self.params
             )
 
