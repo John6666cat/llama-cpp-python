@@ -757,6 +757,7 @@ class llama_model_tensor_buft_override(ctypes.Structure):
 #     bool use_mlock;       // force system to keep model in RAM
 #     bool check_tensors;   // validate model tensor data
 #     bool use_extra_bufts; // use extra buffer types (used for weight repacking)
+#     bool no_host;         // bypass host buffer allowing extra buffers to be used
 # };
 class llama_model_params(ctypes.Structure):
     """Parameters for llama_model
@@ -775,7 +776,8 @@ class llama_model_params(ctypes.Structure):
         use_mmap (bool): use mmap if possible
         use_mlock (bool): force system to keep model in RAM
         check_tensors (bool): validate model tensor data
-        use_extra_bufts (bool): use extra buffer types (used for weight repacking)"""
+        use_extra_bufts (bool): use extra buffer types (used for weight repacking)
+        no_host (bool): bypass host buffer allowing extra buffers to be used"""
 
     if TYPE_CHECKING:
         devices: CtypesArray[ctypes.c_void_p]  # NOTE: unused
@@ -792,6 +794,7 @@ class llama_model_params(ctypes.Structure):
         use_mlock: bool
         check_tensors: bool
         use_extra_bufts: bool
+        no_host: bool
 
     _fields_ = [
         ("devices", ctypes.c_void_p), # NOTE: unnused
@@ -808,6 +811,7 @@ class llama_model_params(ctypes.Structure):
         ("use_mlock", ctypes.c_bool),
         ("check_tensors", ctypes.c_bool),
         ("use_extra_bufts", ctypes.c_bool),
+        ("no_host", ctypes.c_bool),
     ]
 
 

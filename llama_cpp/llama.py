@@ -69,6 +69,9 @@ class Llama:
         vocab_only: bool = False,
         use_mmap: bool = True,
         use_mlock: bool = False,
+        check_tensors: bool = False,
+        use_extra_bufts: bool = False,
+        no_host: bool = False,
         kv_overrides: Optional[Dict[str, Union[bool, int, float, str]]] = None,
         # Context Params
         seed: int = llama_cpp.LLAMA_DEFAULT_SEED,
@@ -156,6 +159,9 @@ class Llama:
             vocab_only: Only load the vocabulary no weights.
             use_mmap: Use mmap if possible.
             use_mlock: Force the system to keep the model in RAM.
+            check_tensors: validate model tensor data
+            use_extra_bufts: use extra buffer types (used for weight repacking)
+            no_host: bypass host buffer allowing extra buffers to be used
             kv_overrides: Key-value overrides for the model.
             seed: RNG seed, -1 for random
             n_ctx: Text context, 0 = from model
@@ -248,6 +254,9 @@ class Llama:
         self.model_params.vocab_only = vocab_only
         self.model_params.use_mmap = use_mmap if lora_path is None else False
         self.model_params.use_mlock = use_mlock
+        self.model_params.check_tensors = check_tensors
+        self.model_params.use_extra_bufts = use_extra_bufts
+        self.model_params.no_host = no_host
 
         # kv_overrides is the original python dict
         self.kv_overrides = kv_overrides
@@ -2205,6 +2214,9 @@ class Llama:
             vocab_only=self.model_params.vocab_only,
             use_mmap=self.model_params.use_mmap,
             use_mlock=self.model_params.use_mlock,
+            check_tensors=self.model_params.check_tensors,
+            use_extra_bufts=self.model_params.use_extra_bufts,
+            no_host=self.model_params.no_host,
             kv_overrides=self.kv_overrides,
             # Context Params
             seed=self._seed,
