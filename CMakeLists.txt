@@ -109,13 +109,12 @@ if (LLAMA_BUILD)
 
     llama_cpp_python_install_target(ggml-base)
 
-    llama_cpp_python_install_target(ggml-amx)
     llama_cpp_python_install_target(ggml-blas)
     llama_cpp_python_install_target(ggml-cann)
     llama_cpp_python_install_target(ggml-cpu)
     llama_cpp_python_install_target(ggml-cuda)
+    llama_cpp_python_install_target(ggml-hexagon)
     llama_cpp_python_install_target(ggml-hip)
-    llama_cpp_python_install_target(ggml-kompute)
     llama_cpp_python_install_target(ggml-metal)
     llama_cpp_python_install_target(ggml-musa)
     llama_cpp_python_install_target(ggml-opencl)
@@ -123,6 +122,7 @@ if (LLAMA_BUILD)
     llama_cpp_python_install_target(ggml-sycl)
     llama_cpp_python_install_target(ggml-vulkan)
     llama_cpp_python_install_target(ggml-webgpu)
+    llama_cpp_python_install_target(ggml-zdnn)
 
     # Workaround for Windows + CUDA https://github.com/abetlen/llama-cpp-python/issues/563
     if (WIN32)
