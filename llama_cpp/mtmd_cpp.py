@@ -398,12 +398,12 @@ def mtmd_input_chunk_get_id(chunk: mtmd_input_chunk_p) -> c_char_p:
     """
     ...
 
-# // number of temporal positions (always 1 for M-RoPE, n_tokens otherwise)
+# // number of temporal positions (equals to max(t,h,w) for M-RoPE; equals to n_tokens otherwise)
 # MTMD_API llama_pos                  mtmd_input_chunk_get_n_pos       (const mtmd_input_chunk * chunk);
 @ctypes_function_mtmd("mtmd_input_chunk_get_n_pos", [mtmd_input_chunk_p_ctypes], c_int32)
 def mtmd_input_chunk_get_n_pos(chunk: mtmd_input_chunk_p) -> c_int32:
     """
-    number of temporal positions (always 1 for M-RoPE, n_tokens otherwise)
+    number of temporal positions (equals to max(t,h,w) for M-RoPE; equals to n_tokens otherwise)
     """
     ...
 
@@ -457,11 +457,12 @@ def mtmd_image_tokens_get_ny(image_tokens: mtmd_image_tokens_p) -> c_size_t:
 def mtmd_image_tokens_get_id(image_tokens: mtmd_image_tokens_p) -> c_char_p:
     ...
 
-# // number of temporal positions (always 1 for M-RoPE, n_tokens otherwise)
+# // number of temporal positions (equals to max(t,h,w) for M-RoPE; equals to n_tokens otherwise)
 # MTMD_API llama_pos    mtmd_image_tokens_get_n_pos   (const mtmd_image_tokens * image_tokens); // TODO: deprecate
 @ctypes_function_mtmd(
     "mtmd_image_tokens_get_n_pos", [mtmd_image_tokens_p_ctypes], c_int32)
 def mtmd_image_tokens_get_n_pos(image_tokens: mtmd_image_tokens_p) -> c_int32:
+    """number of temporal positions (equals to max(t,h,w) for M-RoPE; equals to n_tokens otherwise)"""
     ...
 
 # // tokenize an input text prompt and a list of bitmaps (images/audio)
