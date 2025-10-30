@@ -3638,7 +3638,6 @@ class Qwen25VLChatHandler(Llava15ChatHandler):
 
     CHAT_FORMAT = (
         "{% set image_count = namespace(value=0) %}"
-        #"{% set video_count = namespace(value=0) %}"
         "{% for message in messages %}"
         "{% if loop.first and message['role'] != 'system' %}"
         "<|im_start|>system\n"
@@ -3685,12 +3684,97 @@ class Qwen25VLChatHandler(Llava15ChatHandler):
 
         if self.verbose:
             messages = kwargs.get('messages', [])
-            image_count = len(self.get_image_urls(messages))
-            print(f"Minimal - Cleared state, processing {image_count} images", file=sys.stderr)
+            try:
+                image_count = len(self.get_image_urls(messages))
+                print(f"Qwen25VLChatHandler - Cleared state, processing {image_count} images", file=sys.stderr)
+            except Exception:
+                print(f"Qwen25VLChatHandler - Cleared state", file=sys.stderr)
 
         # Use parent implementation
         return super().__call__(**kwargs)
 
+
+class Qwen3VLChatHandler(Llava15ChatHandler):
+    DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant."
+
+    CHAT_FORMAT_BASE = (
+        "{% set image_count = namespace(value=0) %}"
+        "{% for message in messages %}"
+        "{% if loop.first and message['role'] != 'system' %}"
+        "<|im_start|>system\n"
+        "{{ self.DEFAULT_SYSTEM_MESSAGE }}<|im_end|>\n"
+        "{% endif %}"
+        "<|im_start|>{{ message['role'] }}\n"
+        "{% if message['content'] is string %}"
+        "{{ message['content'] }}<|im_end|>\n"
+        "{% else %}"
+        "{% for content in message['content'] %}"
+        "{% if content['type'] == 'image_url' %}"
+        "{% if content.image_url is string %}"
+        "{% set image_count.value = image_count.value + 1 %}"
+        "Picture {{ image_count.value }}: <|vision_start|> {{ content.image_url }} <|vision_end|>"
+        "{% else %}"
+        "{% set image_count.value = image_count.value + 1 %}"
+        "Picture {{ image_count.value }}: <|vision_start|> {{ content.image_url.url }} <|vision_end|>"
+        "{% endif %}"
+        "{% elif content['type'] == 'text' %}"
+        "{{ content['text'] }}"
+        "{% endif %}"
+        "{% endfor %}"
+        "<|im_end|>\n"
+        "{% endif %}"
+        "{% endfor %}"
+    )
+
+    def __init__(
+        self,
+        use_think_prompt: bool = True,
+        verbose: bool = True,
+        **kwargs,
+    ):
+        """
+        Parameters:
+        - use_think_prompt (bool):
+            - True (default): Use the '<think>' prompt (for Thinking version).
+            - False: Do not use '<think>'              (for Instruct version).
+        - verbose (bool): Whether to print verbose logs.
+        """
+        self.use_think_prompt = use_think_prompt
+        self.verbose = verbose
+
+        if self.use_think_prompt:
+            self.CHAT_FORMAT = self.CHAT_FORMAT_BASE + "<|im_start|>assistant\n<think>\n"
+        else:
+            self.CHAT_FORMAT = self.CHAT_FORMAT_BASE + "<|im_start|>assistant\n"
+
+        super().__init__(**kwargs)
+
+    def __call__(self, **kwargs):
+        llama = kwargs['llama']
+
+        # Clear state for multiple runs
+        llama.reset()
+        llama._ctx.memory_clear(True)
+        llama.n_tokens = 0
+
+        if hasattr(llama, 'input_ids'):
+            llama.input_ids.fill(0)
+
+        # Clear any handler state
+        if hasattr(self, '_last_image_embed'):
+            self._last_image_embed = None
+            self._last_image_hash = None
+
+        if self.verbose:
+            messages = kwargs.get('messages', [])
+            try:
+                image_count = len(self.get_image_urls(messages))
+                print(f"Qwen3VLHandler(think={self.use_think_prompt}) - Cleared state, processing {image_count} images", file=sys.stderr)
+            except Exception:
+                print(f"Qwen3VLHandler(think={self.use_think_prompt}) - Cleared state", file=sys.stderr)
+
+        # Use parent implementation
+        return super().__call__(**kwargs)
 
 
 @register_chat_completion_handler("chatml-function-calling")
