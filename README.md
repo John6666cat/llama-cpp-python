@@ -507,6 +507,7 @@ Below are the supported multi-modal models and their respective chat handlers (P
 | [minicpm-v-2.6](https://huggingface.co/openbmb/MiniCPM-V-2_6-gguf) | `MiniCPMv26ChatHandler` | `minicpm-v-2.6`, `minicpm-v-4.0` |
 | [gemma3](https://huggingface.co/unsloth/gemma-3-27b-it-GGUF) | `Gemma3ChatHandler` | `gemma3` |
 | [qwen2.5-vl](https://huggingface.co/unsloth/Qwen2.5-VL-3B-Instruct-GGUF) | `Qwen25VLChatHandler` | `qwen2.5-vl` |
+| [qwen3-vl](https://huggingface.co/unsloth/Qwen3-VL-8B-Thinking-GGUF) | `Qwen3VLChatHandler` | `qwen3-vl` |
 
 Then you'll need to use a custom chat handler to load the clip model and process the chat messages and images.
 
@@ -595,6 +596,100 @@ messages = [
         ]
     }
 ]
+
+```
+
+</details>
+
+<details>
+<summary>Loading a Local Image With Qwen3VL(Thinking/No Thinking)</summary>
+
+This script demonstrates how to load a local image, encode it as a base64 Data URI, and pass it to a local Qwen3-VL model (with the 'use_think_prompt' parameter enabled for thinking model, disabled for instruct model) for processing using the llama-cpp-python library.
+
+```python
+# Import necessary libraries
+from llama_cpp import Llama
+from llama_cpp.llama_chat_format import Qwen3VLChatHandler
+import base64
+import os
+
+# --- Model Configuration ---
+# Define the path to the main model file
+MODEL_PATH = r"./Qwen3-VL-8B-Thinking-F16.gguf"
+# Define the path to the multi-modal projector file
+MMPROJ_PATH = r"./mmproj-Qwen3-VL-8b-Thinking-F16.gguf"
+
+# --- Initialize the Llama Model ---
+llm = Llama(
+    model_path=MODEL_PATH,
+    # Set up the chat handler for Qwen3-VL, specifying the projector path
+    chat_handler=Qwen3VLChatHandler(clip_model_path=MMPROJ_PATH, use_think_prompt=True),
+    n_gpu_layers=-1,  # Offload all layers to the GPU
+    n_ctx=10240,      # Set the context window size
+    swa_full=True,
+)
+
+# --- Helper Function to Convert Image to Base64 Data URI ---
+def image_to_base64_data_uri(file_path):
+    """
+    Reads an image file, determines its MIME type, and converts it
+    to a base64 encoded Data URI.
+    """
+    # Get the file extension to determine MIME type
+    extension = os.path.splitext(file_path)[1].lower()
+
+    # Determine the MIME type based on the file extension
+    if extension == '.png':
+        mime_type = 'image/png'
+    elif extension in ('.jpg', '.jpeg'):
+        mime_type = 'image/jpeg'
+    elif extension == '.gif':
+        mime_type = 'image/gif'
+    elif extension == '.svg':
+        mime_type = 'image/svg+xml'
+    else:
+        # Use a generic stream type for unsupported formats
+        mime_type = 'application/octet-stream'
+        print(f"Warning: Unsupported image type for file: {file_path}. Using a generic MIME type.")
+
+    # Read the image file in binary mode
+    with open(file_path, "rb") as img_file:
+        # Encode the binary data to base64 and decode to UTF-8
+        base64_data = base64.b64encode(img_file.read()).decode('utf-8')
+        # Format as a Data URI string
+        return f"data:{mime_type};base64,{base64_data}"
+
+# --- Main Logic for Image Processing ---
+
+# 1. Create a list containing all image paths
+image_paths = [
+    r'./scene.jpeg',
+    # Add more image paths here if needed
+]
+
+# 2. Create an empty list to store the message objects (images and text)
+images_messages = []
+
+# 3. Loop through the image path list, convert each image to a Data URI,
+#    and add it to the message list as an image_url object.
+for path in image_paths:
+    data_uri = image_to_base64_data_uri(path)
+    images_messages.append({"type": "image_url", "image_url": {"url": data_uri}})
+
+# 4. Add the final text prompt at the end of the list
+images_messages.append({"type": "text", "text": "Describes the images."})
+
+# 5. Use this list to build the chat_completion request
+res = llm.create_chat_completion(
+    messages=[
+        {"role": "system", "content": "You are a AI assistant who perfectly describes images."},
+        # The user's content is the list containing both images and text
+        {"role": "user", "content": images_messages}
+    ]
+)
+
+# Print the assistant's response
+print(res["choices"][0]["message"]["content"])
 
 ```
 
