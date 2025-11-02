@@ -34,9 +34,10 @@ from .llama_types import *
 from .llama_grammar import LlamaGrammar
 from .llama_cache import (
     BaseLlamaCache,
-    LlamaCache,  # type: ignore
+    LlamaCache,      # type: ignore
     LlamaDiskCache,  # type: ignore
-    LlamaRAMCache,  # type: ignore
+    LlamaRAMCache,   # type: ignore
+    LlamaTrieCache,  # type: ignore
 )
 from .llama_tokenizer import BaseLlamaTokenizer, LlamaTokenizer
 import llama_cpp.llama_cpp as llama_cpp

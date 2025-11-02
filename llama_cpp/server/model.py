@@ -323,6 +323,10 @@ class LlamaProxy:
                 if settings.verbose:
                     print(f"Using disk cache with size {settings.cache_size}")
                 cache = llama_cpp.LlamaDiskCache(capacity_bytes=settings.cache_size)
+            elif settings.cache_type == "tire":
+                if settings.verbose:
+                    print(f"Using tire cache with size {settings.cache_size}")
+                cache = llama_cpp.LlamaTrieCache(capacity_bytes=settings.cache_size)
             else:
                 if settings.verbose:
                     print(f"Using ram cache with size {settings.cache_size}")
