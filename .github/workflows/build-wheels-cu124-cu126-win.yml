@@ -7,36 +7,16 @@ permissions:
   contents: write
 
 jobs:
-  define_matrix:
-    name: Define Build Matrix
-    runs-on: windows-2022
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    defaults:
-      run:
-        shell: pwsh
-
-    steps:
-      - name: Define Job Output
-        id: set-matrix
-        run: |
-          $matrix = @{
-              'os' = @('windows-2022')
-              'pyver' = @("3.10", "3.11", "3.12", "3.13")
-              'cuda' = @("12.4.1","12.6.3")
-              'releasetag' = @("AVX2")
-              'cudaarch' = @("all")
-          }
-
-          $matrixOut = ConvertTo-Json $matrix -Compress
-          Write-Output ('matrix=' + $matrixOut) >> $env:GITHUB_OUTPUT
-
   build_wheels:
-    name: Build Wheel ${{ matrix.os }} ${{ matrix.pyver }} ${{ matrix.cuda }} ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
-    needs: define_matrix
+    name: Build Wheel ${{ matrix.os }} ${{ matrix.pyver }} ${{ matrix.cuda }} ${{ matrix.releasetag }}
     runs-on: ${{ matrix.os }}
     strategy:
-      matrix: ${{ fromJSON(needs.define_matrix.outputs.matrix) }}
+      matrix:
+        os: ['windows-2022']
+        pyver: ["3.10", "3.11", "3.12", "3.13"]
+        cuda: ["12.4.1","12.6.3"]
+        releasetag: ["AVX2"]
+        cudaarch: ["all"]
     defaults:
       run:
         shell: pwsh
@@ -46,7 +26,8 @@ jobs:
       CUDAARCHVER: ${{ matrix.cudaarch }}
       # https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html
       # https://docs.nvidia.com/cuda/cuda-compiler-driver-nvcc/#gpu-feature-list
-      # e.g. "all" "89"
+      # e.g. "all" "89" "90" "100" "120"
+      MAX_JOBS: 8
 
     steps:
       - name: Add MSBuild to PATH
@@ -55,7 +36,7 @@ jobs:
         with:
           msbuild-architecture: x64
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: "recursive"
 
@@ -82,33 +63,34 @@ jobs:
 
       - name: Build Wheel
         run: |
-          # $cupath = 'CUDA_PATH_V' + $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','_')
-          # echo "$cupath=$env:CONDA_PREFIX" >> $env:GITHUB_ENV
-          
           $cudaVersion = $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','')
-          # $env:CUDA_PATH = $env:CONDA_PREFIX
           $env:CUDA_HOME = $env:CUDA_PATH
           $env:CUDA_TOOLKIT_ROOT_DIR = $env:CUDA_PATH
-          if ($IsLinux) {
-            $env:LD_LIBRARY_PATH = $env:CONDA_PREFIX + '/lib:' + $env:LD_LIBRARY_PATH
-          }
           $env:VERBOSE = '1'
-          $env:CMAKE_ARGS = '-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=' + $env:CUDAARCHVER
-          $env:CMAKE_ARGS = "-DGGML_CUDA_FORCE_MMQ=ON $env:CMAKE_ARGS"
-          $env:CMAKE_ARGS = "-DLLAMA_CURL=OFF $env:CMAKE_ARGS"
+          $env:CMAKE_ARGS = '-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=' + $env:CUDAARCHVER + ' -DCMAKE_BUILD_PARALLEL_LEVEL=' + $env:MAX_JOBS
+          $env:CMAKE_ARGS = "-DGGML_CUDA_FORCE_MMQ=on -DCUDA_SEPARABLE_COMPILATION=on $env:CMAKE_ARGS"
+          $env:CMAKE_ARGS = "-DENABLE_CCACHE=on -DLLAMA_CURL=off $env:CMAKE_ARGS"
+
           if ($env:AVXVER -eq 'AVX') {
             $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX2=off -DGGML_FMA=off -DGGML_F16C=off'
           }
           if ($env:AVXVER -eq 'AVX2') {
             $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX2=on -DGGML_FMA=off -DGGML_F16C=off'
           }
+          # if ($env:AVXVER -eq 'AVXVNNI') {
+          #  $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX2=on -DGGML_AVX_VNNI=on -DGGML_FMA=on -DGGML_F16C=off'
+          # }
           # if ($env:AVXVER -eq 'AVX512') {
           #  $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX512=on'
           # }
-          # if ($env:AVXVER -eq 'basic') {
-          # $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX=off -DGGML_AVX2=off -DGGML_FMA=off -DGGML_F16C=off'
-          # }
           python -m build --wheel
+
+          # Check if wheel was built
+          if (!(Test-Path '.\dist\*.whl')) {
+            Write-Error "No wheel built in dist/ directory"
+            exit 1
+          }
+
           # write the build tag to the output
           Write-Output "CUDA_VERSION=$cudaVersion" >> $env:GITHUB_ENV
           
@@ -122,7 +104,9 @@ jobs:
           $currentDate = Get-Date -UFormat "%Y%m%d"
           Write-Output "BUILD_DATE=$currentDate" >> $env:GITHUB_ENV
 
-      - uses: softprops/action-gh-release@v2.2.2
+      - name: Create Release
+        if: always() && env.TAG_VERSION != ''
+        uses: softprops/action-gh-release@v2
         with:
           files: dist/*
           # Set tag_name to <tag>-cu<cuda_version>-<date>-win
