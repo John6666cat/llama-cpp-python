@@ -2811,17 +2811,18 @@ class Llava15ChatHandler:
 
         with suppress_stdout_stderr(disable=self.verbose):
             # Get default parameters
-            ctx_params = self._mtmd_cpp.mtmd_context_params_default()
-            ctx_params.use_gpu = True # TODO: Make this configurable
-            ctx_params.print_timings = self.verbose
-            ctx_params.n_threads = llama_model.n_threads
-            ctx_params.verbosity = 2 if self.verbose else 0  # GGML_LOG_LEVEL_INFO = 2
+            mctx_params = self._mtmd_cpp.mtmd_context_params_default()
+            mctx_params.use_gpu = True # TODO: Make this configurable
+            mctx_params.print_timings = self.verbose
+            mctx_params.n_threads = llama_model.n_threads
+            mctx_params.verbosity = 2 if self.verbose else 0  # GGML_LOG_LEVEL_INFO = 2
+            mctx_params.flash_attn_type  = self._mtmd_cpp.clip_flash_attn_type.CLIP_FLASH_ATTN_TYPE_AUTO
 
             # Initialize mtmd context
             self.mtmd_ctx = self._mtmd_cpp.mtmd_init_from_file(
                 self.clip_model_path.encode(),
                 llama_model.model,
-                ctx_params
+                mctx_params
             )
 
             if self.mtmd_ctx is None:

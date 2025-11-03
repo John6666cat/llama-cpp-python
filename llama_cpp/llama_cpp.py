@@ -1401,10 +1401,16 @@ def llama_supports_gpu_offload() -> bool:
 def llama_supports_rpc() -> bool:
     ...
 
-
+# // NOTE: After creating a llama_context, it is recommended to query the actual values using these functions
+# //       In some cases the requested values via llama_context_params may differ from the actual values used by the context
 # LLAMA_API uint32_t llama_n_ctx      (const struct llama_context * ctx);
 @ctypes_function("llama_n_ctx", [llama_context_p_ctypes], ctypes.c_uint32)
 def llama_n_ctx(ctx: llama_context_p, /) -> int:
+    ...
+
+# LLAMA_API uint32_t llama_n_ctx_seq  (const struct llama_context * ctx);
+@ctypes_function("llama_n_ctx_seq", [llama_context_p_ctypes], ctypes.c_uint32)
+def llama_n_ctx_seq(ctx: llama_context_p, /) -> int:
     ...
 
 

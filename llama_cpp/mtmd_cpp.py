@@ -108,6 +108,32 @@ class mtmd_input_text(Structure):
 mtmd_input_text_p = NewType("mtmd_input_text_p", int)
 mtmd_input_text_p_ctypes = POINTER(mtmd_input_text)
 
+# enum clip_flash_attn_type {
+#     CLIP_FLASH_ATTN_TYPE_AUTO     = -1,
+#     CLIP_FLASH_ATTN_TYPE_DISABLED = 0,
+#     CLIP_FLASH_ATTN_TYPE_ENABLED  = 1,
+# };
+class clip_flash_attn_type (enum.IntEnum):
+    CLIP_FLASH_ATTN_TYPE_AUTO = -1
+    CLIP_FLASH_ATTN_TYPE_DISABLED = 0
+    CLIP_FLASH_ATTN_TYPE_ENABLED = 1
+
+# struct clip_context_params {
+#     bool use_gpu;
+#     enum ggml_log_level verbosity;
+#     enum clip_flash_attn_type flash_attn_type;
+#     int image_min_tokens;
+#     int image_max_tokens;
+# };
+class clip_context_params(Structure):
+    _fields_ = [
+        ("use_gpu", c_bool),
+        ("verbosity", c_int),
+        ("flash_attn_type", c_int),
+        ("image_min_tokens", c_int),
+        ("image_max_tokens", c_int),
+    ]
+
 # struct mtmd_context_params {
 #     bool use_gpu;
 #     bool print_timings;
@@ -115,6 +141,11 @@ mtmd_input_text_p_ctypes = POINTER(mtmd_input_text)
 #     enum ggml_log_level verbosity;
 #     const char * image_marker; // deprecated, use media_marker instead
 #     const char * media_marker;
+#     enum llama_flash_attn_type flash_attn_type;
+
+#     // limit number of image tokens, only for vision models with dynamic resolution
+#     int image_min_tokens; // minimum number of tokens for image input (default: read from metadata)
+#     int image_max_tokens; // maximum number of tokens for image input (default: read from metadata)
 # };
 class mtmd_context_params(Structure):
     _fields_ = [
@@ -124,6 +155,9 @@ class mtmd_context_params(Structure):
         ("verbosity", c_int),
         ("image_marker", c_char_p),
         ("media_marker", c_char_p),
+        ("flash_attn_type", c_int),
+        ("image_min_tokens", c_int),
+        ("image_max_tokens", c_int),
     ]
 
 mtmd_context_params_p = NewType("mtmd_context_params_p", int)
