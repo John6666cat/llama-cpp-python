@@ -3778,21 +3778,38 @@ class Qwen3VLChatHandler(Llava15ChatHandler):
                 "{{- '<|im_end|>\n' -}}"
             "{%- endif -%}"
         "{%- endfor -%}"
-        "{{- '<im_start>assistant\n' -}}"
-        # The thinking model doesn't need the <think></think> tags in this template; the model generates the tags during inference when needed
+        "{%- if add_generation_prompt -%}"
+            "{{- '<im_start>assistant\n' -}}"
+            "{%- if force_reasoning -%}"
+                "{{- '<think>\n' -}}"
+            "{%- endif -%}"
+        "{%- endif -%}"
     )
 
     def __init__(
         self,
         thinking_budget: int | None = None,
+        force_reasoning: bool = False,
         **kwargs,
     ):
+        """
+        Parameters:
+        - thinking_budget (int | None):  # Not implemented yet
+            - int: Number of max tokens for the reasoning.
+            - None (default): Without limit.
+        - force_reasoning (bool):
+            - True: Force the reasoning in the model by adding <think> to the chat template.
+            - False (default): Don't force the reasoning.
+        """
         self.thinking_budget = thinking_budget
+        self.force_reasoning = force_reasoning
         super().__init__(**kwargs)
 
     def __call__(self, **kwargs):
         if self.thinking_budget is not None:
             self.extra_template_arguments["thinking_budget"] = str(self.thinking_budget)
+
+        self.extra_template_arguments["force_reasoning"] = self.force_reasoning
 
         llama = kwargs['llama']
 
