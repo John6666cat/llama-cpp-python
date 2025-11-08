@@ -2800,6 +2800,7 @@ class Llava15ChatHandler:
         self._mtmd_cpp = mtmd_cpp
         self._exit_stack = ExitStack()
         self.mtmd_ctx: Optional[mtmd_cpp.mtmd_context_p] = None
+        self.extra_template_arguments: dict[str, Any] = {}
 
         if not os.path.exists(clip_model_path):
             raise ValueError(f"Clip model path does not exist: {clip_model_path}")
@@ -2931,9 +2932,11 @@ class Llava15ChatHandler:
         # Replace image URLs with media markers in the template
         text = template.render(
             messages=messages,
+            tools=tools,
             add_generation_prompt=True,
             eos_token=llama.detokenize([llama.token_eos()]),
             bos_token=llama.detokenize([llama.token_bos()]),
+            **self.extra_template_arguments
         )
 
         # Replace image URLs in text with media markers
@@ -3696,61 +3699,116 @@ class Qwen25VLChatHandler(Llava15ChatHandler):
 
 
 class Qwen3VLChatHandler(Llava15ChatHandler):
-    DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant."
-
-    CHAT_FORMAT_BASE = (
-        "{% set image_count = namespace(value=0) %}"
-        "{% for message in messages %}"
-        "{% if loop.first and message['role'] != 'system' %}"
-        "<|im_start|>system\n"
-        "{{ self.DEFAULT_SYSTEM_MESSAGE }}<|im_end|>\n"
-        "{% endif %}"
-        "<|im_start|>{{ message['role'] }}\n"
-        "{% if message['content'] is string %}"
-        "{{ message['content'] }}<|im_end|>\n"
-        "{% else %}"
-        "{% for content in message['content'] %}"
-        "{% if content['type'] == 'image_url' %}"
-        "{% if content.image_url is string %}"
-        "{% set image_count.value = image_count.value + 1 %}"
-        "Picture {{ image_count.value }}: <|vision_start|> {{ content.image_url }} <|vision_end|>"
-        "{% else %}"
-        "{% set image_count.value = image_count.value + 1 %}"
-        "Picture {{ image_count.value }}: <|vision_start|> {{ content.image_url.url }} <|vision_end|>"
-        "{% endif %}"
-        "{% elif content['type'] == 'text' %}"
-        "{{ content['text'] }}"
-        "{% endif %}"
-        "{% endfor %}"
-        "<|im_end|>\n"
-        "{% endif %}"
-        "{% endfor %}"
+    CHAT_FORMAT = (
+        "{{- '<|im_start|>system\n' -}}"
+        "{%- if messages[0].content is string and messages[0].role == 'system' -%}"
+            "{{- messages[0].content -}}"
+        "{%- elif messages[0].role == 'system' -%}"
+            "{%- if 'text' in messages[0].content -%}"
+                "{{- messages[0].content.text -}}"
+            "{%- else -%}"
+                "{{- 'You are a helpful assistant.' -}}"
+            "{%- endif -%}"
+        "{%- endif -%}"
+        "{%- if tools -%}"
+            "{{- '\n\n' -}}"
+            "{{- '# Tools\n\nYou may call one or more functions to assist with the user query.\n\nYou are provided with function signatures within <tools></tools> XML tags:\n<tools>' -}}"
+            "{%- for tool in tools -%}"
+                "{{- '\n' -}}"
+                "{{- tool | tojson -}}"
+            "{%- endfor -%}"
+            "{{- '\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <arguments-json-object>}\n</tool_call>\n\nYou can also return a response for the user alongside a function call:\n<response-for-user>\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <arguments-json-object>}\n</tool_call>' -}}"
+        "{%- endif -%}"
+        "{{- '<|im_end|>\n' -}}"
+        "{%- set image_count = namespace(value=0) -%}"
+        #"{%- set video_count = namespace(value=0) -%}"
+        "{%- for message in messages -%}"
+            "{%- if message.role == 'tool' -%}"
+                "{{- '<|im_start|>user\n<tool_response>\n' -}}"
+            "{%- elif message.role != 'system' -%}"
+                "{{- '<|im_start|>' + message.role + '\n' -}}"
+            "{%- endif -%}"
+            "{%- if message.content is string and message.role != 'system' -%}"
+                "{{- message.content -}}"
+            "{%- elif message.role != 'system' -%}"
+                "{%- for content in message.content -%}"
+                    "{%- if 'image_url' in content -%}"
+                        "{%- set image_count.value = image_count.value + 1 -%}"
+                        "{%- if add_vision_id -%}"
+                            "{{- 'Picture ' -}}"
+                            "{{- image_count.value | string -}}"
+                            "{{- ': ' -}}"
+                        "{%- endif -%}"
+                        "{{- '<|vision_start|>' -}}"
+                        "{%- if content.image_url is string -%}"
+                            "{{- content.image_url -}}"
+                        "{%- else -%}"
+                            "{{- content.image_url.url -}}"
+                        "{%- endif -%}"
+                        "{{- '<|vision_end|>' -}}"
+                    "{%- endif -%}"
+                    # Video not supported yet
+                    "{%- if 'text' in content -%}"
+                        "{{- content.text -}}"
+                    "{%- endif -%}"
+                "{%- endfor -%}"
+            "{%- endif -%}"
+            "{%- if message.role == 'assistant' -%}"
+                "{%- if message.tool_calls -%}"
+                    "{%- for tool_call in message.tool_calls -%}"
+                        "{%- if (loop.first and message.content) or (not loop.first) -%}"
+                            "{{- '\n' -}}"
+                        "{%- endif -%}"
+                        "{%- if tool_call.function -%}"
+                            "{%- set tool_call = tool_call.function -%}"
+                        "{%- endif -%}"
+                        "{{- '<tool_call>\n{\"name\": \"' + tool_call.name + '\", \"arguments\": ' -}}"
+                        "{%- if tool_call.arguments is string -%}"
+                            "{{- tool_call.arguments -}}"
+                        "{%- else -%}"
+                            "{{- tool_call.arguments | tojson -}}"
+                        "{%- endif -%}"
+                        "{{- '}\n</tool_call>' -}}"
+                    "{%- endfor -%}"
+                "{%- endif -%}"
+            "{%- elif message.role == 'tool' -%}"
+                "{{- '</tool_response>' -}}"
+            "{%- elif message.role != 'system' -%}"
+                "{{- '<|im_end|>\n' -}}"
+            "{%- endif -%}"
+        "{%- endfor -%}"
+        "{%- if add_generation_prompt -%}"
+            "{{- '<im_start>assistant\n' -}}"
+            "{%- if force_reasoning -%}"
+                "{{- '<think>\n' -}}"
+            "{%- endif -%}"
+        "{%- endif -%}"
     )
 
     def __init__(
         self,
-        use_think_prompt: bool = True,
-        verbose: bool = True,
+        force_reasoning: bool = False,
+        add_vision_id: bool = True,
         **kwargs,
     ):
         """
         Parameters:
-        - use_think_prompt (bool):
-            - True (default): Use the '<think>' prompt (for Thinking version).
-            - False: Do not use '<think>'              (for Instruct version).
-        - verbose (bool): Whether to print verbose logs.
+        - force_reasoning (bool):
+            - True: Force the reasoning in the model by adding <think> to the chat template.
+            - False (default): Don't force the reasoning.
+        - add_vision_id (bool):
+            - True (default): Count all the images. Recommended for multi-image.
+            - False: Doesn't count the images. Can save tokens with single-image.
         """
-        self.use_think_prompt = use_think_prompt
-        self.verbose = verbose
-
-        if self.use_think_prompt:
-            self.CHAT_FORMAT = self.CHAT_FORMAT_BASE + "<|im_start|>assistant\n<think>\n"
-        else:
-            self.CHAT_FORMAT = self.CHAT_FORMAT_BASE + "<|im_start|>assistant\n"
+        self.force_reasoning = force_reasoning
+        self.add_vision_id = add_vision_id
 
         super().__init__(**kwargs)
 
     def __call__(self, **kwargs):
+        self.extra_template_arguments["force_reasoning"] = self.force_reasoning
+        self.extra_template_arguments["add_vision_id"] = self.add_vision_id
+
         llama = kwargs['llama']
 
         # Clear state for multiple runs
@@ -3770,9 +3828,9 @@ class Qwen3VLChatHandler(Llava15ChatHandler):
             messages = kwargs.get('messages', [])
             try:
                 image_count = len(self.get_image_urls(messages))
-                print(f"Qwen3VLHandler(think={self.use_think_prompt}) - Cleared state, processing {image_count} images", file=sys.stderr)
+                print(f"Qwen3VLHandler(force_reasoning={self.force_reasoning}) - Cleared state, processing {image_count} images", file=sys.stderr)
             except Exception:
-                print(f"Qwen3VLHandler(think={self.use_think_prompt}) - Cleared state", file=sys.stderr)
+                print(f"Qwen3VLHandler(force_reasoning={self.force_reasoning}) - Cleared state", file=sys.stderr)
 
         # Use parent implementation
         return super().__call__(**kwargs)
