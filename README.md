@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/abetlen/llama-cpp-python/main/docs/icon.svg" style="height: 5rem; width: 5rem">
 </p>
 
-#  Python Bindings for [`llama.cpp`](https://github.com/ggerganov/llama.cpp)
+#  Python Bindings for [`llama.cpp`](https://github.com/ggml-org/llama.cpp)
 
 [![Documentation Status](https://readthedocs.org/projects/llama-cpp-python/badge/?version=latest)](https://llama-cpp-python.readthedocs.io/en/latest/?badge=latest)
 [![Tests](https://github.com/abetlen/llama-cpp-python/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/abetlen/llama-cpp-python/actions/workflows/test.yaml)
@@ -12,7 +12,7 @@
 [![PyPI - Downloads](https://static.pepy.tech/badge/llama-cpp-python/month)](https://pepy.tech/projects/llama-cpp-python)
 [![Github All Releases](https://img.shields.io/github/downloads/abetlen/llama-cpp-python/total.svg?label=Github%20Downloads)]()
 
-Simple Python bindings for **@ggerganov's** [`llama.cpp`](https://github.com/ggerganov/llama.cpp) library.
+Simple Python bindings for **@ggerganov's** [`llama.cpp`](https://github.com/ggml-org/llama.cpp) library.
 This package provides:
 
 - Low-level access to C API via `ctypes` interface.
@@ -32,7 +32,7 @@ Documentation is available at [https://llama-cpp-python.readthedocs.io/en/latest
 
 Requirements:
 
-  - Python 3.8+
+  - Python 3.9+
   - C compiler
       - Linux: gcc or clang
       - Windows: Visual Studio or MinGW
@@ -125,27 +125,11 @@ CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python
 
 It is also possible to install a pre-built wheel with CUDA support. As long as your system meets some requirements:
 
-- CUDA Version is 12.1, 12.2, 12.3, 12.4 or 12.5
-- Python Version is 3.10, 3.11 or 3.12
+- CUDA Version is 12.4, 12.6 or 12.8
+- Python Version is 3.10, 3.11, 3.12 or 3.13
 
-```bash
-pip install llama-cpp-python \
-  --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/<cuda-version>
-```
-
-Where `<cuda-version>` is one of the following:
-- `cu121`: CUDA 12.1
-- `cu122`: CUDA 12.2
-- `cu123`: CUDA 12.3
-- `cu124`: CUDA 12.4
-- `cu125`: CUDA 12.5
-
-For example, to install the CUDA 12.1 wheel:
-
-```bash
-pip install llama-cpp-python \
-  --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
-```
+Check the releases page:
+https://github.com/JamePeng/llama-cpp-python/releases
 
 </details>
 
@@ -602,9 +586,9 @@ messages = [
 </details>
 
 <details>
-<summary>Loading a Local Image With Qwen3VL(Thinking/No Thinking)</summary>
+<summary>Loading a Local Image With Qwen3VL(Thinking/Instruct)</summary>
 
-This script demonstrates how to load a local image, encode it as a base64 Data URI, and pass it to a local Qwen3-VL model (with the 'use_think_prompt' parameter enabled for thinking model, disabled for instruct model) for processing using the llama-cpp-python library.
+This script demonstrates how to load a local image, encode it as a base64 Data URI, and pass it to a local Qwen3-VL model (with the 'force_reasoning' parameter enabled for thinking model, disabled for instruct model) for processing using the llama-cpp-python library.
 
 ```python
 # Import necessary libraries
@@ -623,7 +607,7 @@ MMPROJ_PATH = r"./mmproj-Qwen3-VL-8b-Thinking-F16.gguf"
 llm = Llama(
     model_path=MODEL_PATH,
     # Set up the chat handler for Qwen3-VL, specifying the projector path
-    chat_handler=Qwen3VLChatHandler(clip_model_path=MMPROJ_PATH, use_think_prompt=True),
+    chat_handler=Qwen3VLChatHandler(clip_model_path=MMPROJ_PATH, force_reasoning=True),
     n_gpu_layers=-1,  # Offload all layers to the GPU
     n_ctx=10240,      # Set the context window size
     swa_full=True,
