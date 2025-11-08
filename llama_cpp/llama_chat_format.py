@@ -3735,7 +3735,9 @@ class Qwen3VLChatHandler(Llava15ChatHandler):
                     "{%- if 'image_url' in content -%}"
                         "{%- set image_count.value = image_count.value + 1 -%}"
                         "{%- if add_vision_id -%}"
-                            "{{- 'Picture ' + image_count.value + ': ' -}}"
+                            "{{- 'Picture ' -}}"
+                            "{{- image_count.value | string -}}"
+                            "{{- ': ' -}}"
                         "{%- endif -%}"
                         "{{- '<|vision_start|>' -}}"
                         "{%- if content.image_url is string -%}"
@@ -3786,6 +3788,7 @@ class Qwen3VLChatHandler(Llava15ChatHandler):
     def __init__(
         self,
         force_reasoning: bool = False,
+        add_vision_id: bool = True,
         **kwargs,
     ):
         """
@@ -3793,12 +3796,19 @@ class Qwen3VLChatHandler(Llava15ChatHandler):
         - force_reasoning (bool):
             - True: Force the reasoning in the model by adding <think> to the chat template.
             - False (default): Don't force the reasoning.
+        - add_vision_id (bool):
+            - True (default): Count all the images. Recommended for multi-image.
+            - False: Doesn't count the images. Can save tokens with single-image.
         """
         self.force_reasoning = force_reasoning
+        self.add_vision_id = add_vision_id
+
         super().__init__(**kwargs)
 
     def __call__(self, **kwargs):
         self.extra_template_arguments["force_reasoning"] = self.force_reasoning
+        self.extra_template_arguments["add_vision_id"] = self.add_vision_id
+
         llama = kwargs['llama']
 
         # Clear state for multiple runs
