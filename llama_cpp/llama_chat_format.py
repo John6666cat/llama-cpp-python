@@ -3719,9 +3719,6 @@ class Qwen3VLChatHandler(Llava15ChatHandler):
             "{%- endfor -%}"
             "{{- '\n</tools>\n\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <arguments-json-object>}\n</tool_call>\n\nYou can also return a response for the user alongside a function call:\n<response-for-user>\n<tool_call>\n{\"name\": <function-name>, \"arguments\": <arguments-json-object>}\n</tool_call>' -}}"
         "{%- endif -%}"
-        #"{%- if thinking_budget -%}"
-        #    "{{- '\n\n# Reasoning\n\nYou must generate your reasoning steps within <think></think> XML tags:\n<think>\n<reasoning-content>\n</think>\n<final-response>\n\nThe reasoning content must not exceed the ' + thinking_budget + ' tokens budget.' -}}"
-        #"{%- endif -%}"  # Doesn't work very well, disabled for now
         "{{- '<|im_end|>\n' -}}"
         "{%- set image_count = namespace(value=0) -%}"
         #"{%- set video_count = namespace(value=0) -%}"
@@ -3788,29 +3785,20 @@ class Qwen3VLChatHandler(Llava15ChatHandler):
 
     def __init__(
         self,
-        thinking_budget: int | None = None,
         force_reasoning: bool = False,
         **kwargs,
     ):
         """
         Parameters:
-        - thinking_budget (int | None):  # Not implemented yet
-            - int: Number of max tokens for the reasoning.
-            - None (default): Without limit.
         - force_reasoning (bool):
             - True: Force the reasoning in the model by adding <think> to the chat template.
             - False (default): Don't force the reasoning.
         """
-        self.thinking_budget = thinking_budget
         self.force_reasoning = force_reasoning
         super().__init__(**kwargs)
 
     def __call__(self, **kwargs):
-        if self.thinking_budget is not None:
-            self.extra_template_arguments["thinking_budget"] = str(self.thinking_budget)
-
         self.extra_template_arguments["force_reasoning"] = self.force_reasoning
-
         llama = kwargs['llama']
 
         # Clear state for multiple runs
@@ -3830,9 +3818,9 @@ class Qwen3VLChatHandler(Llava15ChatHandler):
             messages = kwargs.get('messages', [])
             try:
                 image_count = len(self.get_image_urls(messages))
-                print(f"Qwen3VLHandler(thinking_budget={self.thinking_budget}) - Cleared state, processing {image_count} images", file=sys.stderr)
+                print(f"Qwen3VLHandler(force_reasoning={self.force_reasoning}) - Cleared state, processing {image_count} images", file=sys.stderr)
             except Exception:
-                print(f"Qwen3VLHandler(thinking_budget={self.thinking_budget}) - Cleared state", file=sys.stderr)
+                print(f"Qwen3VLHandler(force_reasoning={self.force_reasoning}) - Cleared state", file=sys.stderr)
 
         # Use parent implementation
         return super().__call__(**kwargs)
