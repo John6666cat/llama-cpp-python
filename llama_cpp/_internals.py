@@ -347,16 +347,92 @@ class LlamaContext:
     def memory_seq_pos_min(self, seq_id: int) -> int:
         return llama_cpp.llama_memory_seq_pos_min(self.get_memory(), seq_id)
 
+    # // State / sessions API
+
     def get_state_size(self) -> int:
         return llama_cpp.llama_state_get_size(self.ctx)
 
-    # TODO: copy_state_data
+    def get_state_data(self, dst:ctypes.Array[ctypes.c_uint8], size: int) -> int:
+        return llama_cpp.llama_state_get_data(self.ctx, dst, size)
 
-    # TODO: set_state_data
+    def set_state_data(self, src:ctypes.Array[ctypes.c_uint8], size: int) -> int:
+        return llama_cpp.llama_state_set_data(self.ctx, src, size)
 
-    # TODO: llama_load_session_file
+    def load_state_file(
+        self,
+        path_session: bytes,
+        tokens_out: ctypes.Array[llama_cpp.llama_token],
+        n_token_capacity: ctypes.c_size_t,
+        n_token_count_out: ctypes.pointer(ctypes.c_size_t)
+    ) -> bool:
+        return llama_cpp.llama_state_load_file(self.ctx, path_session, tokens_out, n_token_capacity, n_token_count_out)
 
-    # TODO: llama_save_session_file
+    def save_state_file(
+        self,
+        path_session: bytes,
+        tokens: ctypes.Array[llama_cpp.llama_token],
+        n_token_count: ctypes.c_size_t
+    ) -> bool:
+        return llama_cpp.llama_state_save_file(self.ctx, path_session, tokens, n_token_count)
+
+    def get_state_seq_size(self, seq_id: int) -> int:
+        return llama_cpp.llama_state_seq_get_size(self.ctx, seq_id)
+
+    def get_state_seq_data(self, dst: ctypes.Array[ctypes.c_uint8], size: int, seq_id: int) -> int:
+        return llama_cpp.llama_state_seq_get_data(self.ctx, dst, size, seq_id)
+
+    def set_state_seq_data(self, src: ctypes.Array[ctypes.c_uint8], size: int, dest_seq_id: int) -> int:
+        return llama_cpp.llama_state_seq_set_data(self.ctx, src, size, dest_seq_id)
+
+    def load_state_seq_file(
+        self,
+        filepath: bytes,
+        dest_seq_id: int,
+        tokens_out: ctypes.Array[llama_cpp.llama_token],
+        n_token_capacity: ctypes.c_size_t,
+        n_token_count_out: ctypes.pointer(ctypes.c_size_t)
+    ) -> int:
+        return llama_cpp.llama_state_seq_load_file(self.ctx, filepath, dest_seq_id, tokens_out, n_token_capacity, n_token_count_out)
+
+    def save_state_seq_file(
+        self,
+        filepath: bytes,
+        seq_id: int,
+        tokens: ctypes.Array[llama_cpp.llama_token],
+        n_token_count: ctypes.c_size_t
+    ) -> int:
+        return llama_cpp.llama_state_seq_save_file(self.ctx, filepath, seq_id, tokens, n_token_count)
+
+    def get_state_seq_size_ext(self, seq_id: int, flags: llama_cpp.llama_state_seq_flags) -> int:
+        return llama_cpp.llama_state_seq_get_size_ext(self.ctx, seq_id, flags)
+
+    def get_state_seq_data_ext(
+        self,
+        dst:ctypes.Array[ctypes.c_uint8],
+        size: int,
+        seq_id: int,
+        flags: llama_cpp.llama_state_seq_flags
+    ) -> int:
+        return llama_cpp.llama_state_seq_get_data_ext(self.ctx, dst, size, seq_id, flags)
+
+    def set_state_seq_data_ext(
+        self,
+        src:ctypes.Array[ctypes.c_uint8],
+        size: int,
+        dest_seq_id: int,
+        flags: llama_cpp.llama_state_seq_flags
+    ) -> int:
+        return llama_cpp.llama_state_seq_set_data_ext(self.ctx, src, size, dest_seq_id, flags)
+
+    # // Decoding API
+
+    def encode(self, batch: LlamaBatch):
+        return_code = llama_cpp.llama_encode(
+            self.ctx,
+            batch.batch,
+        )
+        if return_code != 0:
+            raise RuntimeError(f"llama_encode returned {return_code}")
 
     def decode(self, batch: LlamaBatch):
         return_code = llama_cpp.llama_decode(

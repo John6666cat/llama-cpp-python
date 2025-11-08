@@ -1403,6 +1403,7 @@ def llama_supports_rpc() -> bool:
 
 # // NOTE: After creating a llama_context, it is recommended to query the actual values using these functions
 # //       In some cases the requested values via llama_context_params may differ from the actual values used by the context
+# //       ref: https://github.com/ggml-org/llama.cpp/pull/17046#discussion_r2503085732
 # LLAMA_API uint32_t llama_n_ctx      (const struct llama_context * ctx);
 @ctypes_function("llama_n_ctx", [llama_context_p_ctypes], ctypes.c_uint32)
 def llama_n_ctx(ctx: llama_context_p, /) -> int:
@@ -1500,6 +1501,12 @@ def llama_model_n_ctx_train(model: llama_model_p, /) -> int:
 # LLAMA_API int32_t llama_model_n_embd     (const struct llama_model * model);
 @ctypes_function("llama_model_n_embd", [llama_model_p_ctypes], ctypes.c_int32)
 def llama_model_n_embd(model: llama_model_p, /) -> int:
+    ...
+
+
+# LLAMA_API int32_t llama_model_n_embd_inp (const struct llama_model * model);
+@ctypes_function("llama_model_n_embd_inp", [llama_model_p_ctypes], ctypes.c_int32)
+def llama_model_n_embd_inp(model: llama_model_p, /) -> int:
     ...
 
 
@@ -2440,7 +2447,7 @@ def llama_save_session_file(
 @ctypes_function(
     "llama_state_seq_get_size",
     [llama_context_p_ctypes, llama_seq_id],
-    ctypes.c_size_t,
+    llama_seq_id,
 )
 def llama_state_seq_get_size(ctx: llama_context_p, seq_id: llama_seq_id, /) -> int:
     """Get the exact size needed to copy the state of a single sequence"""
