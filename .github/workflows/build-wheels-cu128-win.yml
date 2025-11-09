@@ -77,12 +77,16 @@ jobs:
           if ($env:AVXVER -eq 'AVX2') {
             $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX2=on -DGGML_FMA=off -DGGML_F16C=off'
           }
-          # if ($env:AVXVER -eq 'AVXVNNI') {
-          #  $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX2=on -DGGML_AVX_VNNI=on -DGGML_FMA=on -DGGML_F16C=off'
-          # }
+          if ($env:AVXVER -eq 'AVXVNNI') {
+           $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX2=on -DGGML_AVX_VNNI=on -DGGML_FMA=on -DGGML_F16C=off'
+          }
           # if ($env:AVXVER -eq 'AVX512') {
           #  $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX512=on'
           # }
+          # Basic options for compiling without AVX instructions
+          if ($env:AVXVER -eq 'Basic') {
+           $env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DGGML_AVX=off -DGGML_AVX2=off -DGGML_AVX512=off -DGGML_FMA=off -DGGML_F16C=off'
+          }
           python -m build --wheel
 
           # Check if wheel was built
@@ -93,7 +97,7 @@ jobs:
 
           # write the build tag to the output
           Write-Output "CUDA_VERSION=$cudaVersion" >> $env:GITHUB_ENV
-          
+
           $wheel = (gi '.\dist\*.whl')[0]
           $tagVer = $wheel.name.split('-')[1]
           Write-Output "TAG_VERSION=$tagVer" >> $env:GITHUB_ENV

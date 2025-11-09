@@ -71,12 +71,16 @@ jobs:
           if [ "${AVXVER}" = "AVX2" ]; then
             CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX2=on -DGGML_FMA=off -DGGML_F16C=off"
           fi
+          if [ "${AVXVER}" = "AVXVNNI" ]; then
+            CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX2=on -DGGML_AVX_VNNI=on -DGGML_FMA=on -DGGML_F16C=off"
+          fi
           # if [ "${AVXVER}" = "AVX512" ]; then
           #   CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX512=on"
           # fi
-          # if [ "${AVXVER}" = "basic" ]; then
-          #   CMAKE_ARGS = "${CMAKE_ARGS} -DGGML_AVX=off -DGGML_AVX2=off -DGGML_FMA=off -DGGML_F16C=off"
-          # fi
+          # Basic options for compiling without AVX instructions
+          if [ "${AVXVER}" = "Basic" ]; then
+            CMAKE_ARGS = "${CMAKE_ARGS} -DGGML_AVX=off -DGGML_AVX2=off -DGGML_AVX512=off -DGGML_FMA=off -DGGML_F16C=off"
+          fi
 
           # Export CMAKE_ARGS environment variable so the python -m build command can use it
           echo ${CMAKE_ARGS}
