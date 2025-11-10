@@ -276,10 +276,11 @@ class LlamaContext:
         self.verbose = verbose
         self._exit_stack = ExitStack()
 
-        ctx = llama_cpp.llama_new_context_with_model(self.model.model, self.params)
+        ctx = llama_cpp.llama_init_from_model(self.model.model, self.params)
 
         if ctx is None:
-            raise ValueError("Failed to create llama_context")
+            llama_cpp.llama_model_free(self.model.model)
+            raise ValueError("Failed to create context with model")
 
         self.ctx = ctx
 
@@ -445,14 +446,38 @@ class LlamaContext:
     def set_n_threads(self, n_threads: int, n_threads_batch: int):
         llama_cpp.llama_set_n_threads(self.ctx, n_threads, n_threads_batch)
 
+    def n_threads(self) -> int:
+        return llama_cpp.llama_n_threads(self.ctx)
+
+    def n_threads_batch(self) -> int:
+        return llama_cpp.llama_n_threads_batch(self.ctx)
+
+    def set_causal_attn(self, causal_attn: bool):
+        llama_cpp.llama_set_causal_attn(self.ctx, causal_attn)
+
+    def set_warmup(self, warmup: bool):
+        llama_cpp.llama_set_warmup(self.ctx, warmup)
+
+    def synchronize(self):
+        llama_cpp.llama_synchronize(self.ctx)
+
     def get_logits(self):
         return llama_cpp.llama_get_logits(self.ctx)
 
     def get_logits_ith(self, i: int):
         return llama_cpp.llama_get_logits_ith(self.ctx, i)
 
+    def set_embeddings(self, embeddings: bool):
+        llama_cpp.llama_set_embeddings(self.ctx, embeddings)
+
     def get_embeddings(self):
         return llama_cpp.llama_get_embeddings(self.ctx)
+
+    def get_embeddings_ith(self, i: int):
+        return llama_cpp.llama_get_embeddings_ith(self.ctx, i)
+
+    def get_embeddings_seq(self, seq_id: int):
+        return llama_cpp.llama_get_embeddings_seq(self.ctx, seq_id)
 
     # Sampling functions
 
