@@ -145,6 +145,12 @@ if (LLAMA_BUILD)
     endif()
 
     if (MTMD_BUILD)
+        if (NOT DEFINED LLAMA_BUILD_NUMBER)
+            set(LLAMA_BUILD_NUMBER        ${BUILD_NUMBER})
+        endif()
+
+        set(LLAMA_INSTALL_VERSION 0.0.${LLAMA_BUILD_NUMBER})
+
         add_subdirectory(vendor/llama.cpp/tools/mtmd)
 
         if (LLAMA_CUBLAS OR LLAMA_CUDA)
