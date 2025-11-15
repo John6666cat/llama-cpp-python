@@ -32,6 +32,10 @@ from llama_cpp._ctypes_extensions import (
     ctypes_function_for_shared_library,
 )
 
+from llama_cpp._ggml import (
+    ggml_log_callback
+)
+
 if TYPE_CHECKING:
     from llama_cpp._ctypes_extensions import (
         CtypesArray,
@@ -120,7 +124,6 @@ class clip_flash_attn_type (enum.IntEnum):
 
 # struct clip_context_params {
 #     bool use_gpu;
-#     enum ggml_log_level verbosity;
 #     enum clip_flash_attn_type flash_attn_type;
 #     int image_min_tokens;
 #     int image_max_tokens;
@@ -128,7 +131,6 @@ class clip_flash_attn_type (enum.IntEnum):
 class clip_context_params(Structure):
     _fields_ = [
         ("use_gpu", c_bool),
-        ("verbosity", c_int),
         ("flash_attn_type", c_int),
         ("image_min_tokens", c_int),
         ("image_max_tokens", c_int),
@@ -138,7 +140,6 @@ class clip_context_params(Structure):
 #     bool use_gpu;
 #     bool print_timings;
 #     int n_threads;
-#     enum ggml_log_level verbosity;
 #     const char * image_marker; // deprecated, use media_marker instead
 #     const char * media_marker;
 #     enum llama_flash_attn_type flash_attn_type;
@@ -152,7 +153,6 @@ class mtmd_context_params(Structure):
         ("use_gpu", c_bool),
         ("print_timings", c_bool),
         ("n_threads", c_int),
-        ("verbosity", c_int),
         ("image_marker", c_char_p),
         ("media_marker", c_char_p),
         ("flash_attn_type", c_int),
@@ -599,6 +599,18 @@ def mtmd_get_output_embd(ctx: mtmd_context_p) -> POINTER(c_float):
     ...
 
 
+# // Set callback for all future logging events.
+# // If this is not called, or NULL is supplied, everything is output on stderr.
+# MTMD_API void mtmd_log_set(ggml_log_callback log_callback, void * user_data);
+@ctypes_function_mtmd(
+    "mtmd_log_set", [ggml_log_callback, c_void_p], None)
+def mtmd_log_set(log_callback: ggml_log_callback, user_data: c_void_p):
+    """
+    Set callback for all future logging events.
+    """
+    ...
+
+
 # // test function, to be used in test-mtmd-c-api.c
 # MTMD_API mtmd_input_chunks * mtmd_test_create_input_chunks(void);
 @ctypes_function_mtmd(
@@ -616,6 +628,19 @@ def mtmd_test_create_input_chunks() -> mtmd_input_chunk_p:
 # // Please note that these helpers are not guaranteed to be stable.
 # // BREAKING CHANGES are expected.
 # //
+
+
+# // Set callback for all future logging events.
+# // If this is not called, or NULL is supplied, everything is output on stderr.
+# // Note: this also call mtmd_log_set() internally
+# MTMD_API void mtmd_helper_log_set(ggml_log_callback log_callback, void * user_data);
+@ctypes_function_mtmd(
+    "mtmd_helper_log_set", [ggml_log_callback, c_void_p], None)
+def mtmd_helper_log_set(log_callback: ggml_log_callback, user_data: c_void_p):
+    """
+    Set callback for all future logging events.
+    """
+    ...
 
 
 # // helper function to construct a mtmd_bitmap from a file

@@ -6,7 +6,10 @@ import os
 import pathlib
 
 from ._ggml import (
-    ggml_opt_get_optimizer_params
+    ggml_abort_callback,
+    ggml_backend_sched_eval_callback,
+    ggml_log_callback,
+    ggml_opt_get_optimizer_params,
 )
 
 from typing import (
@@ -44,91 +47,6 @@ _lib = load_shared_library(_lib_base_name, _base_path)
 
 ctypes_function = ctypes_function_for_shared_library(_lib)
 
-
-# from ggml.h
-# // NOTE: always add types at the end of the enum to keep backward compatibility
-# enum ggml_type {
-#     GGML_TYPE_F32     = 0,
-#     GGML_TYPE_F16     = 1,
-#     GGML_TYPE_Q4_0    = 2,
-#     GGML_TYPE_Q4_1    = 3,
-#     // GGML_TYPE_Q4_2 = 4, support has been removed
-#     // GGML_TYPE_Q4_3 = 5, support has been removed
-#     GGML_TYPE_Q5_0    = 6,
-#     GGML_TYPE_Q5_1    = 7,
-#     GGML_TYPE_Q8_0    = 8,
-#     GGML_TYPE_Q8_1    = 9,
-#     GGML_TYPE_Q2_K    = 10,
-#     GGML_TYPE_Q3_K    = 11,
-#     GGML_TYPE_Q4_K    = 12,
-#     GGML_TYPE_Q5_K    = 13,
-#     GGML_TYPE_Q6_K    = 14,
-#     GGML_TYPE_Q8_K    = 15,
-#     GGML_TYPE_IQ2_XXS = 16,
-#     GGML_TYPE_IQ2_XS  = 17,
-#     GGML_TYPE_IQ3_XXS = 18,
-#     GGML_TYPE_IQ1_S   = 19,
-#     GGML_TYPE_IQ4_NL  = 20,
-#     GGML_TYPE_IQ3_S   = 21,
-#     GGML_TYPE_IQ2_S   = 22,
-#     GGML_TYPE_IQ4_XS  = 23,
-#     GGML_TYPE_I8      = 24,
-#     GGML_TYPE_I16     = 25,
-#     GGML_TYPE_I32     = 26,
-#     GGML_TYPE_I64     = 27,
-#     GGML_TYPE_F64     = 28,
-#     GGML_TYPE_IQ1_M   = 29,
-#     GGML_TYPE_BF16    = 30,
-#     GGML_TYPE_TQ1_0   = 34,
-#     GGML_TYPE_TQ2_0   = 35,
-#     GGML_TYPE_MXFP4   = 39, // MXFP4 (1 block)
-#     GGML_TYPE_COUNT   = 40
-# };
-GGML_TYPE_F32 = 0
-GGML_TYPE_F16 = 1
-GGML_TYPE_Q4_0 = 2
-GGML_TYPE_Q4_1 = 3
-GGML_TYPE_Q5_0 = 6
-GGML_TYPE_Q5_1 = 7
-GGML_TYPE_Q8_0 = 8
-GGML_TYPE_Q8_1 = 9
-GGML_TYPE_Q2_K = 10
-GGML_TYPE_Q3_K = 11
-GGML_TYPE_Q4_K = 12
-GGML_TYPE_Q5_K = 13
-GGML_TYPE_Q6_K = 14
-GGML_TYPE_Q8_K = 15
-GGML_TYPE_IQ2_XXS = 16
-GGML_TYPE_IQ2_XS = 17
-GGML_TYPE_IQ3_XXS = 18
-GGML_TYPE_IQ1_S = 19
-GGML_TYPE_IQ4_NL = 20
-GGML_TYPE_IQ3_S = 21
-GGML_TYPE_IQ2_S = 22
-GGML_TYPE_IQ4_XS = 23
-GGML_TYPE_I8 = 24
-GGML_TYPE_I16 = 25
-GGML_TYPE_I32 = 26
-GGML_TYPE_I64 = 27
-GGML_TYPE_F64 = 28
-GGML_TYPE_IQ1_M = 29
-GGML_TYPE_BF16 = 30
-GGML_TYPE_TQ1_0 = 34
-GGML_TYPE_TQ2_0 = 35
-GGML_TYPE_MXFP4 = 39
-GGML_TYPE_COUNT = 40
-
-# from ggml-backend.h
-# typedef bool (*ggml_backend_sched_eval_callback)(struct ggml_tensor * t, bool ask, void * user_data);
-ggml_backend_sched_eval_callback = ctypes.CFUNCTYPE(
-    ctypes.c_bool, ctypes.c_void_p, ctypes.c_bool, ctypes.c_void_p
-)
-
-# // Abort callback
-# // If not NULL, called before ggml computation
-# // If it returns true, the computation is aborted
-# typedef bool (*ggml_abort_callback)(void * data);
-ggml_abort_callback = ctypes.CFUNCTYPE(ctypes.c_bool, ctypes.c_void_p)
 
 # llama.h bindings
 
@@ -265,6 +183,7 @@ LLAMA_VOCAB_TYPE_PLAMO2 = 6
 #     LLAMA_VOCAB_PRE_TYPE_GROK_2          = 39,
 #     LLAMA_VOCAB_PRE_TYPE_GRANITE_DOCLING = 40,
 #     LLAMA_VOCAB_PRE_TYPE_MINIMAX_M2      = 41,
+#     LLAMA_VOCAB_PRE_TYPE_AFMOE           = 42,
 # };
 LLAMA_VOCAB_PRE_TYPE_DEFAULT = 0
 LLAMA_VOCAB_PRE_TYPE_LLAMA3 = 1
@@ -308,6 +227,7 @@ LLAMA_VOCAB_PRE_TYPE_HUNYUAN_DENSE = 38
 LLAMA_VOCAB_PRE_TYPE_GROK_2 = 39
 LLAMA_VOCAB_PRE_TYPE_GRANITE_DOCLING = 40
 LLAMA_VOCAB_PRE_TYPE_MINIMAX_M2 = 41
+LLAMA_VOCAB_PRE_TYPE_AFMOE = 42
 
 
 # // note: these values should be synchronized with ggml_rope
@@ -4262,11 +4182,11 @@ def llama_print_system_info() -> bytes:
 # LLAMA_API void llama_log_set(ggml_log_callback log_callback, void * user_data);
 @ctypes_function(
     "llama_log_set",
-    [ctypes.c_void_p, ctypes.c_void_p],
+    [ggml_log_callback, ctypes.c_void_p],
     None,
 )
 def llama_log_set(
-    log_callback: Optional[CtypesFuncPointer],
+    log_callback: Optional[ggml_log_callback],
     user_data: ctypes.c_void_p,
     /,
 ):
