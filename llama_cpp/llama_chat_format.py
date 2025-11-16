@@ -35,7 +35,7 @@ import llama_cpp.llama_types as llama_types
 import llama_cpp.llama_grammar as llama_grammar
 
 from ._ggml import GGMLLogLevel
-from ._logger import logger
+from ._logger import logger, llama_log_callback
 from ._utils import suppress_stdout_stderr, Singleton
 
 ### Common Chat Templates and Special Tokens ###
@@ -2811,6 +2811,8 @@ class Llava15ChatHandler:
             return  # Already initialized
 
         with suppress_stdout_stderr(disable=self.verbose):
+            self._mtmd_cpp.mtmd_helper_log_set(llama_log_callback, ctypes.c_void_p(0))
+
             # Get default parameters
             mctx_params = self._mtmd_cpp.mtmd_context_params_default()
             mctx_params.use_gpu = True # TODO: Make this configurable
