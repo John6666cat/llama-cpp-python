@@ -127,6 +127,8 @@ It is also possible to install a pre-built wheel with CUDA support. As long as y
 
 - CUDA Version is 12.4, 12.6 or 12.8
 - Python Version is 3.10, 3.11, 3.12 or 3.13
+- Basic version: A version compiled without using AVX instructions (for compatibility with CPU platforms lacking AVX instructions or with AVX instruction compatibility issues).
+- AVX2 version: A version compiled using AVX2 instructions.
 
 Check the releases page:
 https://github.com/JamePeng/llama-cpp-python/releases
