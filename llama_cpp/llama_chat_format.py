@@ -2792,10 +2792,13 @@ class Llava15ChatHandler:
         "{% endif %}"
     )
 
-    def __init__(self, clip_model_path: str, verbose: bool = True):
+    def __init__(self, clip_model_path: str, verbose: bool = True, use_gpu: bool = True, image_min_tokens: int = -1, image_max_tokens: int = -1):
         import llama_cpp.mtmd_cpp as mtmd_cpp
 
         self.clip_model_path = clip_model_path
+        self.image_min_tokens = image_min_tokens
+        self.image_max_tokens = image_max_tokens
+        self.use_gpu = use_gpu
         self.verbose = verbose
         self._mtmd_cpp = mtmd_cpp
         self._exit_stack = ExitStack()
@@ -2815,10 +2818,16 @@ class Llava15ChatHandler:
 
             # Get default parameters
             mctx_params = self._mtmd_cpp.mtmd_context_params_default()
-            mctx_params.use_gpu = True # TODO: Make this configurable
+            mctx_params.use_gpu = self.use_gpu
             mctx_params.print_timings = self.verbose
             mctx_params.n_threads = llama_model.n_threads
             mctx_params.flash_attn_type  = self._mtmd_cpp.clip_flash_attn_type.CLIP_FLASH_ATTN_TYPE_AUTO
+            if self.image_min_tokens > 0:
+                mctx_params.image_min_tokens = self.image_min_tokens
+            if self.image_max_tokens > 0:
+                mctx_params.image_max_tokens = self.image_max_tokens
+            if (self.image_max_tokens < self.image_min_tokens) and self.image_max_tokens > 0:
+                raise ValueError(f"image_max_pixels {self.image_max_tokens} is less than image_min_pixels {self.image_min_tokens}")
 
             # Initialize mtmd context
             self.mtmd_ctx = self._mtmd_cpp.mtmd_init_from_file(
@@ -3791,6 +3800,7 @@ class Qwen3VLChatHandler(Llava15ChatHandler):
         self,
         force_reasoning: bool = False,
         add_vision_id: bool = True,
+        image_min_tokens: int = -1,
         **kwargs,
     ):
         """
@@ -3801,11 +3811,15 @@ class Qwen3VLChatHandler(Llava15ChatHandler):
         - add_vision_id (bool):
             - True (default): Count all the images. Recommended for multi-image.
             - False: Doesn't count the images. Can save tokens with single-image.
+        - image_min_tokens (int):
+            It only takes effect when the value is greater than zero. the default value is -1 (i.e., using the default parameters in the model's preprocessor_config.json).
+            Note: Qwen-VL models require at minimum 1024 image tokens to function correctly on bbox grounding tasks
         """
         self.force_reasoning = force_reasoning
         self.add_vision_id = add_vision_id
+        self.image_min_tokens = image_min_tokens
 
-        super().__init__(**kwargs)
+        super().__init__(image_min_tokens=self.image_min_tokens, **kwargs)
 
     def __call__(self, **kwargs):
         self.extra_template_arguments["force_reasoning"] = self.force_reasoning
