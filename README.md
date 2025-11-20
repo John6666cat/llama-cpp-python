@@ -587,8 +587,7 @@ messages = [
 
 </details>
 
-<details>
-<summary>Loading a Local Image With Qwen3VL(Thinking/Instruct)</summary>
+## Loading a Local Image With Qwen3VL(Thinking/Instruct)
 
 This script demonstrates how to load a local image, encode it as a base64 Data URI, and pass it to a local Qwen3-VL model (with the 'force_reasoning' parameter enabled for thinking model, disabled for instruct model) for processing using the llama-cpp-python library.
 
@@ -609,47 +608,92 @@ MMPROJ_PATH = r"./mmproj-Qwen3-VL-8b-Thinking-F16.gguf"
 llm = Llama(
     model_path=MODEL_PATH,
     # Set up the chat handler for Qwen3-VL, specifying the projector path
-    chat_handler=Qwen3VLChatHandler(clip_model_path=MMPROJ_PATH, force_reasoning=True),
+    chat_handler=Qwen3VLChatHandler(
+      clip_model_path=MMPROJ_PATH,
+      force_reasoning=True,
+      image_min_tokens=1024, # Note: Qwen-VL models require at minimum 1024 image tokens to function correctly on bbox grounding tasks
+    ),
     n_gpu_layers=-1,  # Offload all layers to the GPU
     n_ctx=10240,      # Set the context window size
     swa_full=True,
 )
 
-# --- Helper Function to Convert Image to Base64 Data URI ---
-def image_to_base64_data_uri(file_path):
+# Comprehensive MIME type mapping (updated as of 2025)
+# Reference: IANA official media types + common real-world usage
+_IMAGE_MIME_TYPES = {
+    # Most common formats
+    '.png':  'image/png',
+    '.jpg':  'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif':  'image/gif',
+    '.webp': 'image/webp',
+    '.svg':  'image/svg+xml',
+    '.svgz': 'image/svg+xml',
+
+    # Next-generation formats
+    '.avif': 'image/avif',
+    '.heic': 'image/heic',
+    '.heif': 'image/heif',
+    '.heics': 'image/heic-sequence',
+    '.heifs': 'image/heif-sequence',
+
+    # Legacy / Windows formats
+    '.bmp':  'image/bmp',
+    '.dib':  'image/bmp',
+    '.ico':  'image/x-icon',
+    '.cur':  'image/x-icon',
+
+    # Professional imaging
+    '.tif':  'image/tiff',
+    '.tiff': 'image/tiff',
+}
+
+def image_to_base64_data_uri(
+    file_path: str,
+    *,
+    fallback_mime: str = "application/octet-stream"
+) -> str:
     """
-    Reads an image file, determines its MIME type, and converts it
-    to a base64 encoded Data URI.
+    Convert a local image file to a base64-encoded data URI with the correct MIME type.
+
+    Supports 20+ image formats (PNG, JPEG, WebP, AVIF, HEIC, SVG, BMP, ICO, TIFF, etc.).
+
+    Args:
+        file_path: Path to the image file on disk.
+        fallback_mime: MIME type used when the file extension is unknown.
+
+    Returns:
+        A valid data URI string (e.g., data:image/webp;base64,...).
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+        OSError: If reading the file fails.
     """
-    # Get the file extension to determine MIME type
+    if not os.path.isfile(file_path):
+        raise FileNotFoundError(f"Image file not found: {file_path}")
+
     extension = os.path.splitext(file_path)[1].lower()
+    mime_type = _IMAGE_MIME_TYPES.get(extension, fallback_mime)
 
-    # Determine the MIME type based on the file extension
-    if extension == '.png':
-        mime_type = 'image/png'
-    elif extension in ('.jpg', '.jpeg'):
-        mime_type = 'image/jpeg'
-    elif extension == '.gif':
-        mime_type = 'image/gif'
-    elif extension == '.svg':
-        mime_type = 'image/svg+xml'
-    else:
-        # Use a generic stream type for unsupported formats
-        mime_type = 'application/octet-stream'
-        print(f"Warning: Unsupported image type for file: {file_path}. Using a generic MIME type.")
+    if mime_type == fallback_mime:
+        print(f"Warning: Unknown extension '{extension}' for '{file_path}'. "
+              f"Using fallback MIME type: {fallback_mime}")
 
-    # Read the image file in binary mode
-    with open(file_path, "rb") as img_file:
-        # Encode the binary data to base64 and decode to UTF-8
-        base64_data = base64.b64encode(img_file.read()).decode('utf-8')
-        # Format as a Data URI string
-        return f"data:{mime_type};base64,{base64_data}"
+    try:
+        with open(file_path, "rb") as img_file:
+            encoded_data = base64.b64encode(img_file.read()).decode("utf-8")
+    except OSError as e:
+        raise OSError(f"Failed to read image file '{file_path}': {e}") from e
+
+    return f"data:{mime_type};base64,{encoded_data}"
 
 # --- Main Logic for Image Processing ---
 
 # 1. Create a list containing all image paths
 image_paths = [
     r'./scene.jpeg',
+    r'./cat.png',
+    r'./network.webp',
     # Add more image paths here if needed
 ]
 
@@ -668,7 +712,7 @@ images_messages.append({"type": "text", "text": "Describes the images."})
 # 5. Use this list to build the chat_completion request
 res = llm.create_chat_completion(
     messages=[
-        {"role": "system", "content": "You are a AI assistant who perfectly describes images."},
+        {"role": "system", "content": "You are a highly accurate vision-language assistant. Provide detailed, precise, and well-structured image descriptions."},
         # The user's content is the list containing both images and text
         {"role": "user", "content": images_messages}
     ]
@@ -679,7 +723,6 @@ print(res["choices"][0]["message"]["content"])
 
 ```
 
-</details>
 
 ### Speculative Decoding
 
