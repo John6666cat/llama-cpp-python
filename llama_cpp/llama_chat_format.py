@@ -3155,16 +3155,83 @@ class Llava15ChatHandler:
 
     @staticmethod
     def _load_image(image_url: str) -> bytes:
-        # TODO: Add Pillow support for other image formats beyond (jpg, png)
-        if image_url.startswith("data:"):
+        """
+        Load an image from either a URL or a data URI and return it as JPEG bytes.
+
+        Supports:
+        - Remote images via HTTP/HTTPS (with proper User-Agent)
+        - Data URIs (base64-encoded, e.g., data:image/png;base64,...)
+        - Images with alpha channel (PNG, WebP, etc.) → automatically composites on white/black background
+        - Any format that Pillow can open
+
+        Returns:
+            JPEG-encoded bytes (quality=95) in RGB mode, suitable for most vision models.
+        """
+        image_bytes = b""
+
+        # 1. Handle data URI (base64)
+        if image_url.strip().startswith("data:"):
             import base64
-            image_bytes = base64.b64decode(image_url.split(",")[1])
-            return image_bytes
+            # Split only once from the right to correctly handle mime types containing commas
+            comma_pos = image_url.find(",")
+            if comma_pos == -1:
+                raise ValueError("Invalid data URI: missing comma separator")
+            base64_data = image_url[comma_pos + 1 :]
+            image_bytes = base64.b64decode(base64_data)
+
+        # 2. Handle local/remote URL
         else:
             import urllib.request
-            with urllib.request.urlopen(image_url) as f:
-                image_bytes = f.read()
-                return image_bytes
+            from urllib.error import URLError, HTTPError
+
+            headers = {"User-Agent": "Mozilla/5.0"}
+            req = urllib.request.Request(image_url, headers=headers)
+
+            try:
+                with urllib.request.urlopen(req, timeout=15) as f:
+                    image_bytes = f.read()
+            except (URLError, HTTPError) as e:
+                raise ConnectionError(f"Failed to download image from {image_url}: {e}")
+
+        if not image_bytes:
+            raise ValueError("Empty image data received")
+
+        # 3. Open image with Pillow
+        try:
+            from PIL import Image, ImageStat
+        except ImportError:
+            raise ImportError("Pillow is required for image processing. Install with: pip install pillow")
+
+        import io
+        image = Image.open(io.BytesIO(image_bytes))
+
+        # 4. Handle transparency (RGBA, LA, P with transparency, etc.)
+        if image.mode in ("RGBA", "LA", "PA") or (image.mode == "P" and "transparency" in image.info):
+            # Use alpha channel as mask
+            if image.mode == "P":
+                image = image.convert("RGBA")
+
+            alpha = image.split()[-1]  # Last channel is alpha
+            # Compute average brightness of visible (non-transparent) pixels
+            stat = ImageStat.Stat(image.convert("L"), mask=alpha)
+
+            # Choose background: white for dark content, black for bright content
+            bg_color = (255, 255, 255)  # white
+            if stat.count[0] > 0 and stat.mean[0] > 127:
+                bg_color = (0, 0, 0)  # black
+
+            background = Image.new("RGB", image.size, bg_color)
+            background.paste(image, mask=alpha)
+            image = background
+
+        # 5. Ensure RGB mode for formats like CMYK, palette, etc.
+        elif image.mode != "RGB":
+            image = image.convert("RGB")
+
+        # 6. Save as high-quality JPEG, suitable for most vision models.
+        output = io.BytesIO()
+        image.save(output, format="JPEG", quality=95, optimize=True, progressive=True)
+        return output.getvalue()
 
     @staticmethod
     def get_image_urls(messages: List[llama_types.ChatCompletionRequestMessage]):
