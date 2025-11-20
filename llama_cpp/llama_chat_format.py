@@ -2808,6 +2808,12 @@ class Llava15ChatHandler:
         if not os.path.exists(clip_model_path):
             raise ValueError(f"Clip model path does not exist: {clip_model_path}")
 
+        # Pre-compile Jinja template
+        self.chat_template = ImmutableSandboxedEnvironment(
+            trim_blocks=True,
+            lstrip_blocks=True,
+        ).from_string(self.CHAT_FORMAT)
+
     def _init_mtmd_context(self, llama_model: llama.Llama):
         """Initialize mtmd context with the llama model."""
         if self.mtmd_ctx is not None:
@@ -2931,16 +2937,12 @@ class Llava15ChatHandler:
             ] + messages
 
         image_urls = self.get_image_urls(messages)
-        template = ImmutableSandboxedEnvironment(
-            trim_blocks=True,
-            lstrip_blocks=True,
-        ).from_string(self.CHAT_FORMAT)
 
         # Get the default media marker
         media_marker = self._mtmd_cpp.mtmd_default_marker().decode('utf-8')
 
         # Replace image URLs with media markers in the template
-        text = template.render(
+        text = self.chat_template.render(
             messages=messages,
             tools=tools,
             add_generation_prompt=True,
