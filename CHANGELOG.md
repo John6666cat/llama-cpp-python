@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.17]
+- feat: Update llama.cpp to [ggml-org/llama.cpp/commit/054a45c3d313387a4becd5eae982285932852b35](https://github.com/ggml-org/llama.cpp/commit/054a45c3d313387a4becd5eae982285932852b35)
+- feat: Sync llama.cpp llama/mtmd API Binding 20251121
+- feat: **Support clip flash-attn**
+- feat: **0day support Qwen3VLChatHandler into llama_chat_format.py**
+- Update README.md for Qwen3VL example(Thinking/No Thinking)
+- feat: **Better Qwen3VL chat template. (by @alcoftTAO)**
+- feat: [Implement LlamaTrieCache into llama_cache.py](https://github.com/JamePeng/llama-cpp-python/commit/2419dc2d9bb0a6be0cd381038ce00fcaea124c76): Optimize LlamaCache lookup from **O(N)** to **O(K)** using a Trie, **improves retrieval speed at least 40x compared to the original linear scan method of finding the longest prefix , thereby enhancing service responsiveness.**
+- feat: Update Llava15ChatHandler to accept use_gpu, image_min_tokens, and image_max_tokens.Now can pass the`image_min_tokens`parameter in Qwen3VLChatHandler to support bbox grounding tasks.
+- feat: [Add Pillow process code in _load_image for VLM](https://github.com/JamePeng/llama-cpp-python/commit/3b0133365e25840c023aef6b6c8578073cd081e8): that can reliably handle common formats, Supports 20+ image formats (PNG, JPEG, WebP, AVIF, HEIC, SVG, BMP, ICO, TIFF, etc.). Images with alpha channel (PNG, WebP, etc.) → automatically composites on white/black background(white for dark content, black for bright content)
+- feat: Optimize CUDA Wheel Build Workflow, now workflow action support python3.10-3.13  cu124-cu126-cu128  Basic(Non AVX)-AVX2  win-linux
+
+
+More information see : https://github.com/JamePeng/llama-cpp-python/compare/e5392b52036bd2770ece5269352f5600a8db5639...fbb0ed2f089c663a5eb75aadcad08f768041ed72
+
 ## [0.3.16]
 
 - feat: Update llama.cpp to [ggml-org/llama.cpp/commit/5e6229a8409ac786e62cb133d09f1679a9aec13e](https://github.com/ggml-org/llama.cpp/commit/5e6229a8409ac786e62cb133d09f1679a9aec13e)
