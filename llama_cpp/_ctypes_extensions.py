@@ -53,8 +53,17 @@ def load_shared_library(lib_base_name: str, base_path: pathlib.Path):
     if sys.platform == "win32" and sys.version_info >= (3, 8):
         os.add_dll_directory(str(base_path))
         if "CUDA_PATH" in os.environ:
-            os.add_dll_directory(os.path.join(os.environ["CUDA_PATH"], "bin"))
-            os.add_dll_directory(os.path.join(os.environ["CUDA_PATH"], "lib"))
+            cuda_path = os.environ["CUDA_PATH"]
+            sub_dirs_to_add = [
+                "bin",
+                "lib",
+                os.path.join("lib", "x64")
+            ]
+            for sub_dir in sub_dirs_to_add:
+                full_path = os.path.join(cuda_path, sub_dir)
+                if os.path.exists(full_path):
+                    os.add_dll_directory(full_path)
+
         if "HIP_PATH" in os.environ:
             os.add_dll_directory(os.path.join(os.environ["HIP_PATH"], "bin"))
             os.add_dll_directory(os.path.join(os.environ["HIP_PATH"], "lib"))
