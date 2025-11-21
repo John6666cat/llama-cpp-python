@@ -65,6 +65,11 @@ if (LLAMA_BUILD)
     # Disable building curl support
     set(LLAMA_CURL OFF CACHE BOOL "llama.cpp: enable curl" FORCE)
 
+    if (WIN32 OR APPLE)
+        # Enable build and link BoringSSL only on Windows and macOS
+        set(LLAMA_BUILD_BORINGSSL ON CACHE BOOL "llama.cpp: build and link BoringSSL" FORCE)
+    endif()
+
     # Architecture detection and settings for Apple platforms
     if (APPLE)
         # Get the target architecture
