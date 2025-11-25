@@ -273,17 +273,17 @@ class Llama:
                 if isinstance(v, bool):
                     self._kv_overrides_array[
                         i
-                    ].tag = llama_cpp.LLAMA_KV_OVERRIDE_TYPE_BOOL
+                    ].tag = llama_cpp.LlamaModelKVOverrideType.LLAMA_KV_OVERRIDE_TYPE_BOOL.value
                     self._kv_overrides_array[i].value.val_bool = v
                 elif isinstance(v, int):
                     self._kv_overrides_array[
                         i
-                    ].tag = llama_cpp.LLAMA_KV_OVERRIDE_TYPE_INT
+                    ].tag = llama_cpp.LlamaModelKVOverrideType.LLAMA_KV_OVERRIDE_TYPE_INT.value
                     self._kv_overrides_array[i].value.val_i64 = v
                 elif isinstance(v, float):
                     self._kv_overrides_array[
                         i
-                    ].tag = llama_cpp.LLAMA_KV_OVERRIDE_TYPE_FLOAT
+                    ].tag = llama_cpp.LlamaModelKVOverrideType.LLAMA_KV_OVERRIDE_TYPE_FLOAT.value
                     self._kv_overrides_array[i].value.val_f64 = v
                 elif isinstance(v, str):  # type: ignore
                     v_bytes = v.encode("utf-8")
@@ -292,7 +292,7 @@ class Llama:
                     v_bytes = v_bytes.ljust(128, b"\0")
                     self._kv_overrides_array[
                         i
-                    ].tag = llama_cpp.LLAMA_KV_OVERRIDE_TYPE_STR
+                    ].tag = llama_cpp.LlamaModelKVOverrideType.LLAMA_KV_OVERRIDE_TYPE_STR.value
                     # copy min(v_bytes, 128) to str_value
                     address = typing.cast(
                         int,

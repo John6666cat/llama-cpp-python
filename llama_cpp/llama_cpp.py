@@ -584,10 +584,40 @@ class llama_batch(ctypes.Structure):
 #     LLAMA_KV_OVERRIDE_TYPE_BOOL,
 #     LLAMA_KV_OVERRIDE_TYPE_STR,
 # };
-LLAMA_KV_OVERRIDE_TYPE_INT = 0
-LLAMA_KV_OVERRIDE_TYPE_FLOAT = 1
-LLAMA_KV_OVERRIDE_TYPE_BOOL = 2
-LLAMA_KV_OVERRIDE_TYPE_STR = 3
+class LlamaModelKVOverrideType(enum.IntEnum):
+    LLAMA_KV_OVERRIDE_TYPE_INT   = 0
+    LLAMA_KV_OVERRIDE_TYPE_FLOAT = 1
+    LLAMA_KV_OVERRIDE_TYPE_BOOL  = 2
+    LLAMA_KV_OVERRIDE_TYPE_STR   = 3
+
+
+# enum llama_model_meta_key {
+#     LLAMA_MODEL_META_KEY_SAMPLING_SEQUENCE,
+#     LLAMA_MODEL_META_KEY_SAMPLING_TOP_K,
+#     LLAMA_MODEL_META_KEY_SAMPLING_TOP_P,
+#     LLAMA_MODEL_META_KEY_SAMPLING_MIN_P,
+#     LLAMA_MODEL_META_KEY_SAMPLING_XTC_PROBABILITY,
+#     LLAMA_MODEL_META_KEY_SAMPLING_XTC_THRESHOLD,
+#     LLAMA_MODEL_META_KEY_SAMPLING_TEMP,
+#     LLAMA_MODEL_META_KEY_SAMPLING_PENALTY_LAST_N,
+#     LLAMA_MODEL_META_KEY_SAMPLING_PENALTY_REPEAT,
+#     LLAMA_MODEL_META_KEY_SAMPLING_MIROSTAT,
+#     LLAMA_MODEL_META_KEY_SAMPLING_MIROSTAT_TAU,
+#     LLAMA_MODEL_META_KEY_SAMPLING_MIROSTAT_ETA,
+# };
+class LlamaModelMetaKey(enum.IntEnum):
+    LLAMA_MODEL_META_KEY_SAMPLING_SEQUENCE        = 0
+    LLAMA_MODEL_META_KEY_SAMPLING_TOP_K           = 1
+    LLAMA_MODEL_META_KEY_SAMPLING_TOP_P           = 2
+    LLAMA_MODEL_META_KEY_SAMPLING_MIN_P           = 3
+    LLAMA_MODEL_META_KEY_SAMPLING_XTC_PROBABILITY = 4
+    LLAMA_MODEL_META_KEY_SAMPLING_XTC_THRESHOLD   = 5
+    LLAMA_MODEL_META_KEY_SAMPLING_TEMP            = 6
+    LLAMA_MODEL_META_KEY_SAMPLING_PENALTY_LAST_N  = 7
+    LLAMA_MODEL_META_KEY_SAMPLING_PENALTY_REPEAT  = 8
+    LLAMA_MODEL_META_KEY_SAMPLING_MIROSTAT        = 9
+    LLAMA_MODEL_META_KEY_SAMPLING_MIROSTAT_TAU    = 10
+    LLAMA_MODEL_META_KEY_SAMPLING_MIROSTAT_ETA    = 11
 
 
 # struct llama_model_kv_override {
@@ -1508,6 +1538,14 @@ def llama_model_meta_val_str(
 @ctypes_function("llama_model_meta_count", [llama_model_p_ctypes], ctypes.c_int32)
 def llama_model_meta_count(model: llama_model_p, /) -> int:
     """Get the number of metadata key/value pairs"""
+    ...
+
+
+# // Get sampling metadata key name. Returns nullptr if the key is invalid
+# LLAMA_API const char * llama_model_meta_key_str(enum llama_model_meta_key key);
+@ctypes_function("llama_model_meta_key_str", [ctypes.c_int], ctypes.c_char_p)
+def llama_model_meta_key_str(key: int, /) -> ctypes.c_char_p:
+    """Get sampling metadata key name. Returns nullptr if the key is invalid"""
     ...
 
 
