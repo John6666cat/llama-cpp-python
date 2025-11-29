@@ -67,6 +67,11 @@ def load_shared_library(lib_base_name: str, base_path: pathlib.Path):
         if "HIP_PATH" in os.environ:
             os.add_dll_directory(os.path.join(os.environ["HIP_PATH"], "bin"))
             os.add_dll_directory(os.path.join(os.environ["HIP_PATH"], "lib"))
+
+        if "VULKAN_SDK" in os.environ:
+            os.add_dll_directory(os.path.join(os.environ["VULKAN_SDK"], "Bin"))
+            os.add_dll_directory(os.path.join(os.environ["VULKAN_SDK"], "Lib"))
+
         cdll_args["winmode"] = ctypes.RTLD_GLOBAL
 
     # Try to load the shared library, handling potential errors

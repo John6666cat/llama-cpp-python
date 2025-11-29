@@ -172,7 +172,11 @@ CMAKE_ARGS="-DGGML_HIPBLAS=on" pip install llama-cpp-python
 <details>
 <summary>Vulkan</summary>
 
-To install with Vulkan support, set the `GGML_VULKAN=on` environment variable before installing:
+- For Windows User: Download and install the [`Vulkan SDK`](https://vulkan.lunarg.com/sdk/home#windows) with the default settings.
+
+- For Linux User: Follow the official LunarG instructions for the installation and setup of the Vulkan SDK in the [Getting Started with the Linux Tarball Vulkan SDK](https://vulkan.lunarg.com/doc/sdk/latest/linux/getting_started.html) guide.
+
+Then install with Vulkan support by set the `GGML_VULKAN=on` environment variable before installing:
 
 ```bash
 CMAKE_ARGS="-DGGML_VULKAN=on" pip install llama-cpp-python
