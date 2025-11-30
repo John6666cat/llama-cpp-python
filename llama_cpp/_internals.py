@@ -436,12 +436,19 @@ class LlamaContext:
             raise RuntimeError(f"llama_encode returned {return_code}")
 
     def decode(self, batch: LlamaBatch):
-        return_code = llama_cpp.llama_decode(
-            self.ctx,
-            batch.batch,
-        )
-        if return_code != 0:
-            raise RuntimeError(f"llama_decode returned {return_code}")
+        return_code = llama_cpp.llama_decode(self.ctx, batch.batch)
+
+        if return_code == 0:
+            return
+
+        error_map = {
+             1: "No KV slot available: try reducing batch size or increasing context window",
+             2: "Decoding aborted",
+            -1: "Invalid input batch",
+        }
+
+        msg = error_map.get(return_code, "Fatal internal error")
+        raise RuntimeError(f"llama_decode failed (code {return_code}): {msg}")
 
     def set_n_threads(self, n_threads: int, n_threads_batch: int):
         llama_cpp.llama_set_n_threads(self.ctx, n_threads, n_threads_batch)
