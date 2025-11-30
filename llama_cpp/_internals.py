@@ -1010,27 +1010,6 @@ class LlamaSampler:
         # Return the char** pointer and the number of strings
         return char_array_ptr, num_byte_list
 
-    def add_grammar_lazy(
-            self,
-            model: LlamaModel,
-            grammar: LlamaGrammar,
-            trigger_tokens:list[llama_cpp.llama_token],
-            num_trigger_tokens: int,
-            trigger_words: list[str]=[]
-        ):
-        trigger_words_char_array_ptr, num_trigger_words = self.convert_list_str_to_char_array_ptr(trigger_words)
-
-        sampler = llama_cpp.llama_sampler_init_grammar_lazy(
-            model.vocab,
-            grammar._grammar.encode("utf-8"),
-            grammar._root.encode("utf-8"),
-            trigger_words_char_array_ptr,
-            num_trigger_words,
-            trigger_tokens,
-            num_trigger_tokens
-        )
-        self._add_sampler(sampler)
-
     def add_grammar_lazy_patterns(
             self,
             model: LlamaModel,
