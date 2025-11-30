@@ -23,30 +23,50 @@ class LlamaGrammar:
         self._grammar = _grammar
         self._root = LLAMA_GRAMMAR_DEFAULT_ROOT
 
+    @property
+    def grammar(self) -> str:
+        return self._grammar
+
     @classmethod
     def from_string(cls, grammar: str, verbose: bool = True) -> "LlamaGrammar":
         return cls(_grammar=grammar)
 
     @classmethod
     def from_file(cls, file: Union[str, Path], verbose: bool = True) -> "LlamaGrammar":
+        file_path = Path(file)
+
+        if not file_path.exists():
+            raise FileNotFoundError(f"{cls.__name__}.from_file: file not found: {file_path}")
+
         try:
-            with open(file) as f:
-                grammar = f.read()
+            grammar_content = file_path.read_text(encoding='utf-8')
         except Exception as err:
-            raise Exception(
-                f"{cls.from_file.__name__}: error reading grammar file: {err}"
-            )
+            raise IOError(f"{cls.__name__}.from_file: error reading grammar file: {err}")
 
-        if grammar:
-            return cls.from_string(grammar, verbose=verbose)
+        if not grammar_content.strip():
+            raise ValueError(f"{cls.__name__}.from_file: grammar file is empty")
 
-        raise ValueError(
-            f"{cls.from_file.__name__}: error parsing grammar file: params_grammer is empty"
-        )
+        return cls.from_string(grammar_content, verbose=verbose)
 
     @classmethod
-    def from_json_schema(cls, json_schema: str, verbose: bool = True) -> "LlamaGrammar":
-        return cls.from_string(json_schema_to_gbnf(json_schema), verbose=verbose)
+    def from_json_schema(
+        cls,
+        json_schema: str,
+        prop_order: Optional[List[str]] = None,
+        verbose: bool = True
+    ) -> "LlamaGrammar":
+        """
+        Create a syntax object from a JSON Schema.
+
+        json_schema: A JSON Schema string or dictionary.
+        prop_order: Specifies the order in which fields are generated (helps improve the stability of small models).
+        verbose: Whether to log.
+        """
+        try:
+            gbnf_grammar_str = json_schema_to_gbnf(json_schema, prop_order=prop_order)
+            return cls.from_string(gbnf_grammar_str, verbose=verbose)
+        except Exception as e:
+            raise ValueError(f"{cls.__name__}.from_json_schema: conversion failed: {e}")
 
 
 """llama.cpp gbnf rules from vendor/llama.cpp/grammars"""
