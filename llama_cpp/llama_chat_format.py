@@ -2828,6 +2828,7 @@ class Llava15ChatHandler:
             mctx_params.print_timings = self.verbose
             mctx_params.n_threads = llama_model.n_threads
             mctx_params.flash_attn_type  = self._mtmd_cpp.clip_flash_attn_type.CLIP_FLASH_ATTN_TYPE_AUTO
+            mctx_params.warmup = True
             if self.image_min_tokens > 0:
                 mctx_params.image_min_tokens = self.image_min_tokens
             if self.image_max_tokens > 0:

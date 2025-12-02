@@ -127,6 +127,7 @@ class clip_flash_attn_type (enum.IntEnum):
 #     enum clip_flash_attn_type flash_attn_type;
 #     int image_min_tokens;
 #     int image_max_tokens;
+#     bool warmup;
 # };
 class clip_context_params(Structure):
     _fields_ = [
@@ -134,6 +135,7 @@ class clip_context_params(Structure):
         ("flash_attn_type", c_int),
         ("image_min_tokens", c_int),
         ("image_max_tokens", c_int),
+        ("warmup", c_bool),
     ]
 
 # struct mtmd_context_params {
@@ -143,6 +145,7 @@ class clip_context_params(Structure):
 #     const char * image_marker; // deprecated, use media_marker instead
 #     const char * media_marker;
 #     enum llama_flash_attn_type flash_attn_type;
+#     bool warmup; // whether to run a warmup encode pass after initialization
 
 #     // limit number of image tokens, only for vision models with dynamic resolution
 #     int image_min_tokens; // minimum number of tokens for image input (default: read from metadata)
@@ -156,6 +159,7 @@ class mtmd_context_params(Structure):
         ("image_marker", c_char_p),
         ("media_marker", c_char_p),
         ("flash_attn_type", c_int),
+        ("warmup", c_bool),
         ("image_min_tokens", c_int),
         ("image_max_tokens", c_int),
     ]
