@@ -1,4 +1,4 @@
-name: Build Wheels(CU126) for Linux # Workflow name
+name: Build Wheels(CU126) for Linux(Basic)
 
 on:
   workflow_dispatch: # Manual trigger
@@ -16,7 +16,7 @@ jobs:
         os: ["ubuntu-22.04"]
         pyver: ["3.10", "3.11", "3.12", "3.13"] # Python versions
         cuda: ["12.6.3"]
-        releasetag: ["AVX2"] # Controls CMAKE_ARGS for CPU features (even in CUDA build)
+        releasetag: ["Basic"] # Controls CMAKE_ARGS for CPU features (even in CUDA build)
         cudaarch: ["all"] # Controls target CUDA architectures for nvcc
 
     defaults:
@@ -65,18 +65,6 @@ jobs:
           CMAKE_ARGS="-DGGML_CUDA_FORCE_MMQ=on ${CMAKE_ARGS}"
           CMAKE_ARGS="${CMAKE_ARGS} -DLLAMA_CURL=off -DLLAMA_OPENSSL=on -DLLAMA_HTTPLIB=on"
 
-          if [ "${AVXVER}" = "AVX" ]; then
-            CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX=on -DGGML_AVX2=off -DGGML_FMA=off -DGGML_F16C=off"
-          fi
-          if [ "${AVXVER}" = "AVX2" ]; then
-            CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX=on -DGGML_AVX2=on -DGGML_AVX512=off -DGGML_FMA=off -DGGML_F16C=off"
-          fi
-          if [ "${AVXVER}" = "AVXVNNI" ]; then
-            CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX=on -DGGML_AVX2=on -DGGML_AVX_VNNI=on -DGGML_FMA=on -DGGML_F16C=off"
-          fi
-          # if [ "${AVXVER}" = "AVX512" ]; then
-          #   CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX512=on"
-          # fi
           # Basic options for compiling without AVX instructions
           if [ "${AVXVER}" = "Basic" ]; then
             CMAKE_ARGS = "${CMAKE_ARGS} -DGGML_AVX=off -DGGML_AVX2=off -DGGML_AVX512=off -DGGML_FMA=off -DGGML_F16C=off"
