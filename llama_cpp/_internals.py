@@ -225,32 +225,38 @@ class LlamaModel:
     # Extra
     def metadata(self) -> Dict[str, str]:
         metadata: Dict[str, str] = {}
-        buffer_size = 1024
+        # Pre-allocate a 16KB buffer. This is large enough to handle almost all
+        # metadata values (including gpt-oss large chat templates ~15KB) in a single pass,
+        # eliminating the need for resize-and-retry in most cases.
+        buffer_size = 16384
         buffer = ctypes.create_string_buffer(buffer_size)
-        # zero the buffer
-        buffer.value = b"\0" * buffer_size
+
+        # Caching function references reduces the overhead of property lookups within loops.
+        get_key_by_index = llama_cpp.llama_model_meta_key_by_index
+        get_val_by_index = llama_cpp.llama_model_meta_val_str_by_index
+        metadata_count = llama_cpp.llama_model_meta_count(self.model)
         # iterate over model keys
-        for i in range(llama_cpp.llama_model_meta_count(self.model)):
-            nbytes = llama_cpp.llama_model_meta_key_by_index(
-                self.model, i, buffer, buffer_size
-            )
+        for i in range(metadata_count):
+            # 1. Get Key
+            nbytes = get_key_by_index(self.model, i, buffer, buffer_size)
+            # Handle buffer resize if the key exceeds current size
             if nbytes > buffer_size:
-                buffer_size = nbytes + 1
+                buffer_size = nbytes + 1024
                 buffer = ctypes.create_string_buffer(buffer_size)
-                nbytes = llama_cpp.llama_model_meta_key_by_index(
-                    self.model, i, buffer, buffer_size
-                )
+                # Retry with the larger buffer
+                nbytes = get_key_by_index(self.model, i, buffer, buffer_size)
             key = buffer.value.decode("utf-8")
-            nbytes = llama_cpp.llama_model_meta_val_str_by_index(
-                self.model, i, buffer, buffer_size
-            )
+
+            # 2. Get Value
+            nbytes = get_val_by_index(self.model, i, buffer, buffer_size)
+            # Handle buffer resize if the value exceeds current size
             if nbytes > buffer_size:
-                buffer_size = nbytes + 1
+                buffer_size = nbytes + 1024
                 buffer = ctypes.create_string_buffer(buffer_size)
-                nbytes = llama_cpp.llama_model_meta_val_str_by_index(
-                    self.model, i, buffer, buffer_size
-                )
+                # Retry with the larger buffer
+                nbytes = get_val_by_index(self.model, i, buffer, buffer_size)
             value = buffer.value.decode("utf-8")
+
             metadata[key] = value
         return metadata
 
