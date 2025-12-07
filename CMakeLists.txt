@@ -125,6 +125,7 @@ if (LLAMA_BUILD)
         ggml-vulkan
         ggml-webgpu
         ggml-zdnn
+        ggml-zendnn
     )
 
     # Loop through targets to avoid repetitive function calls
