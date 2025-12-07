@@ -56,6 +56,7 @@ def load_shared_library(lib_base_name: str, base_path: pathlib.Path):
             cuda_path = os.environ["CUDA_PATH"]
             sub_dirs_to_add = [
                 "bin",
+                os.path.join("bin", "x64"),  # CUDA 13.0+
                 "lib",
                 os.path.join("lib", "x64")
             ]
