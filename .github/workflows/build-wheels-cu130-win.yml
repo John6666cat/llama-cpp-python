@@ -16,7 +16,7 @@ jobs:
         pyver: ["3.10", "3.11", "3.12", "3.13"]
         cuda: ["13.0.2"]
         releasetag: ["AVX2"]
-        cudaarch: ["75-real;80-real;86-real;87-real;89-real;90-real;100-real;101-real;120-real"]
+        cudaarch: ["75-real;80-real;86-real;87-real;89-real;90-real;100-real;120-real"]
     defaults:
       run:
         shell: pwsh
