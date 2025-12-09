@@ -307,8 +307,8 @@ class LlamaContext:
     def n_ctx(self) -> int:
         return llama_cpp.llama_n_ctx(self.ctx)
 
-    def n_batch(self) -> int:
-        return llama_cpp.llama_n_batch(self.ctx)
+    def n_ctx_seq(self) -> int:
+        return llama_cpp.llama_n_ctx_seq(self.ctx)
 
     def n_batch(self) -> int:
         return llama_cpp.llama_n_batch(self.ctx)
