@@ -66,13 +66,13 @@ jobs:
           CMAKE_ARGS="${CMAKE_ARGS} -DLLAMA_CURL=off -DLLAMA_OPENSSL=on -DLLAMA_HTTPLIB=on"
 
           if [ "${AVXVER}" = "AVX" ]; then
-            CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX=on -DGGML_AVX2=off -DGGML_FMA=off -DGGML_F16C=off"
+            CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX=on -DGGML_AVX2=off  -DGGML_AVX512=off -DGGML_FMA=off -DGGML_F16C=off"
           fi
           if [ "${AVXVER}" = "AVX2" ]; then
-            CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX=on -DGGML_AVX2=on -DGGML_AVX512=off -DGGML_FMA=off -DGGML_F16C=off"
+            CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX=on -DGGML_AVX2=on -DGGML_AVX512=off"
           fi
           if [ "${AVXVER}" = "AVXVNNI" ]; then
-            CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX=on -DGGML_AVX2=on -DGGML_AVX_VNNI=on -DGGML_FMA=on -DGGML_F16C=off"
+            CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX=on -DGGML_AVX2=on -DGGML_AVX_VNNI=on"
           fi
           # if [ "${AVXVER}" = "AVX512" ]; then
           #   CMAKE_ARGS="${CMAKE_ARGS} -DGGML_AVX512=on"
