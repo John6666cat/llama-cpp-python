@@ -712,6 +712,7 @@ class llama_model_tensor_buft_override(ctypes.Structure):
 #     bool check_tensors;   // validate model tensor data
 #     bool use_extra_bufts; // use extra buffer types (used for weight repacking)
 #     bool no_host;         // bypass host buffer allowing extra buffers to be used
+#     bool no_alloc;        // only load metadata and simulate memory allocations
 # };
 class llama_model_params(ctypes.Structure):
     """Parameters for llama_model
@@ -731,7 +732,8 @@ class llama_model_params(ctypes.Structure):
         use_mlock (bool): force system to keep model in RAM
         check_tensors (bool): validate model tensor data
         use_extra_bufts (bool): use extra buffer types (used for weight repacking)
-        no_host (bool): bypass host buffer allowing extra buffers to be used"""
+        no_host (bool): bypass host buffer allowing extra buffers to be used
+        no_alloc (bool): only load metadata and simulate memory allocations"""
 
     if TYPE_CHECKING:
         devices: CtypesArray[ctypes.c_void_p]  # NOTE: unused
@@ -749,6 +751,7 @@ class llama_model_params(ctypes.Structure):
         check_tensors: bool
         use_extra_bufts: bool
         no_host: bool
+        no_alloc: bool
 
     _fields_ = [
         ("devices", ctypes.c_void_p), # NOTE: unnused
@@ -766,8 +769,10 @@ class llama_model_params(ctypes.Structure):
         ("check_tensors", ctypes.c_bool),
         ("use_extra_bufts", ctypes.c_bool),
         ("no_host", ctypes.c_bool),
+        ("no_alloc", ctypes.c_bool),
     ]
 
+llama_model_params_p = ctypes.POINTER(llama_model_params)
 
 # // NOTE: changing the default values of parameters marked as [EXPERIMENTAL] may cause crashes or incorrect results in certain configurations
 # //       https://github.com/ggml-org/llama.cpp/pull/7544
@@ -918,6 +923,7 @@ class llama_context_params(ctypes.Structure):
         ("kv_unified", ctypes.c_bool),
     ]
 
+llama_context_params_p = ctypes.POINTER(llama_context_params)
 
 # // Signature for logging events
 # // Note that text includes the new line character at the end for most events.
@@ -1306,6 +1312,51 @@ def llama_free(ctx: llama_context_p, /):
     ...
 
 
+# // fits mparams and cparams to free device memory (assumes system memory is unlimited)
+# // returns true if the parameters could be successfully modified to fit device memory
+# // this function is NOT thread safe because it modifies the global llama logger state
+# LLAMA_API bool llama_params_fit(
+#                                 const char   * path_model,
+#                 struct llama_model_params   * mparams,
+#                 struct llama_context_params * cparams,
+#                                         float * tensor_split,          // writable buffer for tensor split, needs at least llama_max_devices elements
+#     struct llama_model_tensor_buft_override * tensor_buft_overrides, // writable buffer for overrides, needs at least llama_max_tensor_buft_overrides elements
+#                                         size_t   margin,                // margin of memory to leave per device in bytes
+#                                     uint32_t   n_ctx_min,             // minimum context size to set when trying to reduce memory use
+#                         enum ggml_log_level   log_level);            // minimum log level to print during fitting, lower levels go to debug log
+@ctypes_function(
+    "llama_params_fit",
+    [
+        ctypes.c_char_p,
+        llama_model_params_p,
+        llama_context_params_p,
+        ctypes.POINTER(ctypes.c_float),
+        ctypes.POINTER(llama_model_tensor_buft_override),
+        ctypes.c_size_t,
+        ctypes.c_uint32,
+        ctypes.c_int,
+    ],
+    ctypes.c_bool,
+)
+def llama_params_fit(
+    path_model: ctypes.c_char_p,
+    mparams: llama_model_params_p,
+    cparams: llama_context_params_p,
+    tensor_split: ctypes.pointer(ctypes.c_float),
+    tensor_buft_overrides: ctypes.pointer(llama_model_tensor_buft_override),
+    margin: ctypes.c_size_t,
+    n_ctx_min: ctypes.c_uint32,
+    log_level: int,
+    /,
+) -> bool:
+    """
+    fits mparams and cparams to free device memory (assumes system memory is unlimited)
+    returns true if the parameters could be successfully modified to fit device memory
+    this function is NOT thread safe because it modifies the global llama logger state
+    """
+    ...
+
+
 # LLAMA_API int64_t llama_time_us(void);
 @ctypes_function(
     "llama_time_us",
@@ -1325,6 +1376,12 @@ def llama_max_devices() -> int:
 # LLAMA_API size_t llama_max_parallel_sequences(void);
 @ctypes_function("llama_max_parallel_sequences", [], ctypes.c_size_t)
 def llama_max_parallel_sequences() -> int:
+    ...
+
+
+# LLAMA_API size_t llama_max_tensor_buft_overrides(void);
+@ctypes_function("llama_max_tensor_buft_overrides", [], ctypes.c_size_t)
+def llama_max_tensor_buft_overrides() -> int:
     ...
 
 
@@ -4217,6 +4274,23 @@ def llama_print_system_info() -> bytes:
 
 # // Set callback for all future logging events.
 # // If this is not called, or NULL is supplied, everything is output on stderr.
+# // The logger state is global so these functions are NOT thread safe.
+# LLAMA_API void llama_log_get(ggml_log_callback * log_callback, void ** user_data);
+@ctypes_function(
+    "llama_log_get",
+    [ctypes.POINTER(ggml_log_callback), ctypes.POINTER(ctypes.c_void_p)],
+    None,
+)
+def llama_log_get(
+    log_callback: Optional[ctypes.pointer(ggml_log_callback)],
+    user_data: ctypes.pointer(ctypes.c_void_p),
+    /,
+):
+    """Get callback for all future logging events.
+    If this is not called, or NULL is supplied, everything is output on stderr."""
+    ...
+
+
 # LLAMA_API void llama_log_set(ggml_log_callback log_callback, void * user_data);
 @ctypes_function(
     "llama_log_set",
@@ -4229,7 +4303,6 @@ def llama_log_set(
     /,
 ):
     """Set callback for all future logging events.
-
     If this is not called, or NULL is supplied, everything is output on stderr."""
     ...
 
