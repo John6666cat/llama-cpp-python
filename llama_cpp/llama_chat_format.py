@@ -3717,6 +3717,83 @@ class Gemma3ChatHandler(Llava15ChatHandler):
     )
 
 
+class GLM41VChatHandler(Llava15ChatHandler):
+    # Note: Make sure the GGUF files of your converted model and mmproj are F16 or F32.
+
+    GLM41V_EOS_TOKEN = "<|endoftext|>"
+    GLM41V_PAD_TOKEN = "<|endoftext|>"
+    GLM41V_IMAGE_START_TOKEN = "<|begin_of_image|>"
+    GLM41V_IMAGE_END_TOKEN = "<|end_of_image|>"
+
+    CHAT_FORMAT = (
+        "[gMASK]<sop>\n"
+        "{%- for msg in messages -%}"
+            "{%- if msg.role == 'system' -%}"
+                "<|system|>\n{{ msg.content }}{{ GLM41V_EOS_TOKEN }}"
+            "{%- elif msg.role == 'user' -%}"
+                "<|user|>\n"
+                "{%- if msg.content is string -%}"
+                    "{{ msg.content }}"
+                "{%- else -%}"
+                    "{%- for item in msg.content -%}"
+                        "{%- if item.type == 'image_url' or 'image_url' in item -%}"
+                            "<|begin_of_image|>"
+                            "{%- if item.image_url is string -%}"
+                                "{{- item.image_url -}}"
+                            "{%- else -%}"
+                                "{{- item.image_url.url -}}"
+                            "{%- endif -%}"
+                            "<|end_of_image|>"
+                        "{%- elif item.type == 'text' -%}"
+                            "{{ item.text }}"
+                        "{%- endif -%}"
+                    "{%- endfor -%}"
+                "{%- endif -%}{{ GLM41V_EOS_TOKEN }}"
+            "{%- elif msg.role == 'assistant' -%}"
+                "{%- if msg.metadata -%}"
+                    "<|assistant|>{{ msg.metadata }}\n{{ msg.content }}{{ GLM41V_EOS_TOKEN }}"
+                "{%- else -%}"
+                    "<|assistant|>\n{{ msg.content }}{{ GLM41V_EOS_TOKEN }}"
+                "{%- endif -%}"
+            "{%- endif -%}"
+        "{%- endfor -%}"
+        "{%- if add_generation_prompt -%}"
+            "<|assistant|>\n"
+        "{%- endif -%}"
+    )
+
+    def __call__(self, **kwargs):
+        self.extra_template_arguments["GLM41V_EOS_TOKEN"] = self.GLM41V_EOS_TOKEN
+        stop_tokens = [self.GLM41V_EOS_TOKEN, "</answer>"] # Stop token patch
+        kwargs['stop'] = stop_tokens
+
+        llama = kwargs['llama']
+
+        # Clear state for multiple runs
+        llama.reset()
+        llama._ctx.memory_clear(True)
+        llama.n_tokens = 0
+
+        if hasattr(llama, 'input_ids'):
+            llama.input_ids.fill(0)
+
+        # Clear any handler state
+        if hasattr(self, '_last_image_embed'):
+            self._last_image_embed = None
+            self._last_image_hash = None
+
+        if self.verbose:
+            messages = kwargs.get('messages', [])
+            try:
+                image_count = len(self.get_image_urls(messages))
+                print(f"GLM4VChatHandler - Processing {image_count} images", file=sys.stderr)
+            except Exception:
+                print(f"GLM4VChatHandler - State reset", file=sys.stderr)
+
+        # Use parent implementation
+        return super().__call__(**kwargs)
+
+
 class Qwen25VLChatHandler(Llava15ChatHandler):
     DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant."
 

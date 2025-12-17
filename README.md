@@ -496,6 +496,7 @@ Below are the supported multi-modal models and their respective chat handlers (P
 | [llama-3-vision-alpha](https://huggingface.co/abetlen/llama-3-vision-alpha-gguf) | `Llama3VisionAlphaChatHandler` | `llama-3-vision-alpha` |
 | [minicpm-v-2.6](https://huggingface.co/openbmb/MiniCPM-V-2_6-gguf) | `MiniCPMv26ChatHandler` | `minicpm-v-2.6`, `minicpm-v-4.0` |
 | [gemma3](https://huggingface.co/unsloth/gemma-3-27b-it-GGUF) | `Gemma3ChatHandler` | `gemma3` |
+| [glm4.1v](https://huggingface.co/unsloth/GLM-4.1V-9B-Thinking-GGUF) | `GLM41VChatHandler` | `glm4.1v` |
 | [qwen2.5-vl](https://huggingface.co/unsloth/Qwen2.5-VL-3B-Instruct-GGUF) | `Qwen25VLChatHandler` | `qwen2.5-vl` |
 | [qwen3-vl](https://huggingface.co/unsloth/Qwen3-VL-8B-Thinking-GGUF) | `Qwen3VLChatHandler` | `qwen3-vl` |
 
