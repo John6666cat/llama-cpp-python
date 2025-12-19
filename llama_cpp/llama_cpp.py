@@ -550,7 +550,7 @@ class llama_batch(ctypes.Structure):
     The provided arrays (i.e. token, embd, pos, etc.) must have size of n_tokens
 
     Attributes:
-        n_tokens (int): number of tokens
+        n_tokens (ctypes.c_int32): number of tokens
         token (ctypes.Array[llama_token]): the token ids of the input (used when embd is NULL)
         embd (ctypes.Array[ctypes.ctypes.c_float]): token embeddings (i.e. float vector of size n_embd) (used when token is NULL)
         pos (ctypes.Array[ctypes.Array[llama_pos]]): the positions of the respective token in the sequence
@@ -559,7 +559,7 @@ class llama_batch(ctypes.Structure):
     """
 
     if TYPE_CHECKING:
-        n_tokens: int
+        n_tokens: ctypes.c_int32
         token: CtypesArray[llama_token]
         embd: CtypesArray[ctypes.c_float]
         pos: CtypesArray[CtypesArray[llama_pos]]

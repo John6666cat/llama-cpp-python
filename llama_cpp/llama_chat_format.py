@@ -2999,22 +2999,19 @@ class Llava15ChatHandler:
                 llama._ctx.memory_clear(True)
 
                 # Process each chunk
-                n_past = llama_cpp.llama_pos(0)
+                n_past = 0
                 n_chunks = self._mtmd_cpp.mtmd_input_chunks_size(chunks)
 
                 for i in range(n_chunks):
                     chunk = self._mtmd_cpp.mtmd_input_chunks_get(chunks, i)
-                    if chunk is None:
-                        continue
+                    if chunk is None: continue
 
                     chunk_type = self._mtmd_cpp.mtmd_input_chunk_get_type(chunk)
 
                     if chunk_type == self._mtmd_cpp.mtmd_input_chunk_type.MTMD_INPUT_CHUNK_TYPE_TEXT:
                         # Handle text chunk
                         n_tokens_out = ctypes.c_size_t()
-                        tokens_ptr = self._mtmd_cpp.mtmd_input_chunk_get_tokens_text(
-                            chunk, ctypes.byref(n_tokens_out)
-                        )
+                        tokens_ptr = self._mtmd_cpp.mtmd_input_chunk_get_tokens_text(chunk, ctypes.byref(n_tokens_out))
 
                         if tokens_ptr and n_tokens_out.value > 0:
                             # Convert ctypes array to Python list
@@ -3024,15 +3021,17 @@ class Llava15ChatHandler:
                                 raise ValueError(
                                     f"Prompt exceeds n_ctx: {llama.n_tokens + len(tokens)} > {llama.n_ctx()}"
                                 )
+                            llama.n_tokens = n_past
                             llama.eval(tokens)
+                            n_past = llama.n_tokens
 
                     elif chunk_type in [self._mtmd_cpp.mtmd_input_chunk_type.MTMD_INPUT_CHUNK_TYPE_IMAGE, self._mtmd_cpp.mtmd_input_chunk_type.MTMD_INPUT_CHUNK_TYPE_AUDIO]:
                         # Handle image/audio chunk using helper
                         chunk_n_tokens = self._mtmd_cpp.mtmd_input_chunk_get_n_tokens(chunk)
 
-                        if llama.n_tokens + chunk_n_tokens > llama.n_ctx():
+                        if n_past + chunk_n_tokens > llama.n_ctx():
                             raise ValueError(
-                                f"Prompt exceeds n_ctx: {llama.n_tokens + chunk_n_tokens} > {llama.n_ctx()}"
+                                f"Prompt exceeds n_ctx: {n_past + chunk_n_tokens} > {llama.n_ctx()}"
                             )
 
                         new_n_past = llama_cpp.llama_pos(0)
@@ -3040,7 +3039,7 @@ class Llava15ChatHandler:
                             self.mtmd_ctx,
                             llama._ctx.ctx,
                             chunk,
-                            llama_cpp.llama_pos(llama.n_tokens),
+                            llama_cpp.llama_pos(n_past),
                             llama_cpp.llama_seq_id(0),
                             llama.n_batch,
                             False,  # logits_last
@@ -3051,8 +3050,15 @@ class Llava15ChatHandler:
                             raise ValueError(f"Failed to evaluate chunk: error code {result}")
 
                         # Update llama's token count
-                        llama.n_tokens = new_n_past.value
+                        n_past = new_n_past.value
+                        llama.n_tokens = n_past
 
+                n_past = llama.n_tokens
+                if n_past > 0:
+                    llama._ctx.memory_seq_rm(0, n_past - 1, -1)
+                    if llama._ctx.memory_seq_pos_min(0) == llama._ctx.memory_seq_pos_max(0):
+                        n_past += 1
+                    llama.n_tokens = n_past
                 # Get prompt tokens to avoid a cache miss
                 prompt = llama.input_ids[: llama.n_tokens].tolist()
 
@@ -3786,9 +3792,9 @@ class GLM41VChatHandler(Llava15ChatHandler):
             messages = kwargs.get('messages', [])
             try:
                 image_count = len(self.get_image_urls(messages))
-                print(f"GLM4VChatHandler - Processing {image_count} images", file=sys.stderr)
+                print(f"GLM4VChatHandler - Cleared state, processing {image_count} images", file=sys.stderr)
             except Exception:
-                print(f"GLM4VChatHandler - State reset", file=sys.stderr)
+                print(f"GLM4VChatHandler - Cleared state", file=sys.stderr)
 
         # Use parent implementation
         return super().__call__(**kwargs)

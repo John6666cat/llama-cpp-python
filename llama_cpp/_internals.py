@@ -662,7 +662,7 @@ class LlamaBatch:
     def reset(self):
         self.batch.n_tokens = 0
 
-    def set_batch(self, batch: Sequence[int], n_past: int, logits_all: bool):
+    def set_batch(self, batch: Sequence[int], n_past: llama_cpp.llama_pos, logits_all: bool):
         n_tokens = len(batch)
         self.batch.n_tokens = n_tokens
         for i in range(n_tokens):
