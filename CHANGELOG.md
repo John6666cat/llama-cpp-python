@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.18]
+- feat: Update llama.cpp to [ggml-org/llama.cpp/commit/ce734a8a2f9fb6eb4f0383ab1370a1b0014ab787](https://github.com/ggml-org/llama.cpp/commit/ce734a8a2f9fb6eb4f0383ab1370a1b0014ab787)
+- feat: Sync llama.cpp llama/mtmd API Binding 20251215
+- feat: **implement `GLM46VChatHandler` for GLM-4.6V Series Model**
+- feat: **implement `LFM2VLChatHandler` for LFM2-VL series models**
+- feat: **implement `GLM41VChatHandler` for GLM-4.1V-9B-Thinking Model**
+- workflow: Added workflows for compiling with CUDA 13.0.2 on Windows and Linux.
+- feat: Added the scan path for CUDA 13.0+ dynamic link libraries under Windows system ($env:CUDA_PATH\bin\x64)
+- Optimization: Improved batch token processing logic in Llava15ChatHandler.
+- [perf: optimize LlamaModel.metadata reading performance](https://github.com/JamePeng/llama-cpp-python/commit/8213c19b0e164780ffffa3e64b5fc033cdbe4974)
+    - Increase initial buffer size to 16KB to eliminate re-allocations for large chat templates.
+    - Cache ctypes function references to reduce loop overhead.
+    - Repeated model loading can result in a cumulative speed improvement of 1-3%.
+- build: Improve CMakeLists target logic
+- refactor: optimize LlamaGrammar class code
+
+More information see: https://github.com/JamePeng/llama-cpp-python/compare/67421d546ddcaa07678ac7921a9f124e7e3de10e...d5131e2ff41e05f83fd847052b06938c7a551a6a
+
 ## [0.3.17]
 - feat: Update llama.cpp to [ggml-org/llama.cpp/commit/054a45c3d313387a4becd5eae982285932852b35](https://github.com/ggml-org/llama.cpp/commit/054a45c3d313387a4becd5eae982285932852b35)
 - feat: Sync llama.cpp llama/mtmd API Binding 20251121
@@ -20,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat: Optimize CUDA Wheel Build Workflow, now workflow action support python3.10-3.13  cu124-cu126-cu128  Basic(Non AVX)-AVX2  win-linux
 
 
-More information see : https://github.com/JamePeng/llama-cpp-python/compare/e5392b52036bd2770ece5269352f5600a8db5639...fbb0ed2f089c663a5eb75aadcad08f768041ed72
+More information see: https://github.com/JamePeng/llama-cpp-python/compare/e5392b52036bd2770ece5269352f5600a8db5639...fbb0ed2f089c663a5eb75aadcad08f768041ed72
 
 ## [0.3.16]
 
