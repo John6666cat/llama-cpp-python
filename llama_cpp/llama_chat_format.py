@@ -3800,6 +3800,71 @@ class GLM41VChatHandler(Llava15ChatHandler):
         return super().__call__(**kwargs)
 
 
+class LFM2VLChatHandler(Llava15ChatHandler):
+    LFM2VL_BOS_TOKEN = "<|startoftext|>"
+    LFM2VL_EOS_TOKEN = "<|im_end|>"
+    LFM2VL_IMAGE_START_TOKEN = "<|image_start|>"
+    LFM2VL_IMAGE_END_TOKEN = "<|image_end|>"
+
+    CHAT_FORMAT = (
+        "{%- for message in messages -%}"
+            "{{ '<|im_start|>' + message['role'] + '\n' }}"
+            "{%- if message['content'] is string -%}"
+                "{{ message['content'] }}"
+            "{%- else -%}"
+                "{%- for content in message['content'] -%}"
+                    "{%- if 'image_url' in content -%}"
+                        "{%- if content.image_url is string -%}"
+                            "<|image_start|>{{ content.image_url }}<|image_end|>"
+                        "{%- else -%}"
+                            "<|image_start|>{{ content.image_url.url }}<|image_end|>"
+                        "{%- endif -%}"
+                    "{%- elif content['type'] == 'text' -%}"
+                        "{{ content['text'] }}"
+                    "{%- endif -%}"
+                "{%- endfor -%}"
+            "{%- endif -%}"
+            "{{ '<|im_end|>\n' }}"
+        "{%- endfor -%}"
+        "{%- if add_generation_prompt -%}"
+            "{{ '<|im_start|>assistant\n' }}"
+        "{%- endif -%}"
+    )
+
+    def __init__(self, image_min_tokens: int = -1, image_max_tokens: int = -1, **kwargs):
+        """
+        LFM2-VL Handler
+        LiquidAI officially recommends configuring LFM2-VL with the following Vision parameters: min_image_tokens=64, max_image_tokens=256
+        """
+        self.image_min_tokens = image_min_tokens
+        self.image_max_tokens = image_max_tokens
+        super().__init__(image_min_tokens=self.image_min_tokens, image_max_tokens=self.image_max_tokens, **kwargs)
+
+    def __call__(self, **kwargs):
+
+        llama = kwargs['llama']
+        llama.reset()
+        llama._ctx.memory_clear(True)
+        llama.n_tokens = 0
+
+        if hasattr(llama, 'input_ids'):
+            llama.input_ids.fill(0)
+
+        if hasattr(self, '_last_image_embed'):
+            self._last_image_embed = None
+            self._last_image_hash = None
+
+        if self.verbose:
+            messages = kwargs.get('messages', [])
+            try:
+                image_count = len(self.get_image_urls(messages))
+                print(f"LFM2VLChatHandler - Cleared state, Processing {image_count} images", file=sys.stderr)
+            except Exception:
+                print(f"LFM2VLChatHandler - Cleared state", file=sys.stderr)
+
+        return super().__call__(**kwargs)
+
+
 class Qwen25VLChatHandler(Llava15ChatHandler):
     DEFAULT_SYSTEM_MESSAGE = "You are a helpful assistant."
 
