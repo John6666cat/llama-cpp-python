@@ -3770,7 +3770,8 @@ class GLM41VChatHandler(Llava15ChatHandler):
 
     def __call__(self, **kwargs):
         self.extra_template_arguments["GLM41V_EOS_TOKEN"] = self.GLM41V_EOS_TOKEN
-        stop_tokens = [self.GLM41V_EOS_TOKEN, "</answer>"] # Stop token patch
+        # https://huggingface.co/zai-org/GLM-4.1V-9B-Thinking/blob/main/generation_config.json
+        stop_tokens = [self.GLM41V_EOS_TOKEN, "<|user|>", "<|observation|>", "</answer>"] # Stop token patch
         kwargs['stop'] = stop_tokens
 
         llama = kwargs['llama']
