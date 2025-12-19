@@ -3801,6 +3801,106 @@ class GLM41VChatHandler(Llava15ChatHandler):
         return super().__call__(**kwargs)
 
 
+class GLM46VChatHandler(Llava15ChatHandler):
+    GLM46V_EOS_TOKEN = "<|endoftext|>"
+    GLM46V_PAD_TOKEN = "<|endoftext|>"
+    GLM46V_IMAGE_START_TOKEN = "<|begin_of_image|>"
+    GLM46V_IMAGE_END_TOKEN = "<|end_of_image|>"
+
+    CHAT_FORMAT = (
+        "[gMASK]<sop>"
+        "{%- if tools -%}"
+            "<|system|>\n# Tools\n\nYou may call one or more functions to assist with the user query.\n"
+            "You are provided with function signatures within <tools></tools> XML tags:\n<tools>\n"
+            "{%- for tool in tools -%}"
+                "{{ tool | tojson(ensure_ascii=False) }}\n"
+            "{%- endfor -%}"
+            "</tools>\n\nFor each function call, output the function name and arguments within the following XML format:\n"
+            "<tool_call>{function-name}\n<arg_key>{arg-key-1}</arg_key>\n<arg_value>{arg-value-1}</arg_value>\n...\n</tool_call>"
+        "{%- endif -%}"
+
+        "{%- for m in messages -%}"
+            "{%- if m.role == 'system' -%}"
+                "<|system|>\n{{ m.content }}"
+            "{%- elif m.role == 'user' -%}"
+                "<|user|>\n"
+                "{%- if m.content is string -%}"
+                    "{{ m.content }}"
+                "{%- else -%}"
+                    "{%- for item in m.content -%}"
+                        "{%- if item.type == 'image_url' or 'image_url' in item -%}"
+                            "<|begin_of_image|>"
+                            "{%- if item.image_url is string -%}"
+                                "{{- item.image_url -}}"
+                            "{%- else -%}"
+                                "{{- item.image_url.url -}}"
+                            "{%- endif -%}"
+                            "<|end_of_image|>"
+                        "{%- elif item.type == 'text' -%}"
+                            "{{ item.text }}"
+                        "{%- endif -%}"
+                    "{%- endfor -%}"
+                "{%- endif -%}"
+                # If enable_thinking is disabled, insert `/nothink` according to the source code logic.
+                "{{ '/nothink' if not enable_thinking else '' }}"
+            "{%- elif m.role == 'assistant' -%}"
+                "<|assistant|>"
+                "{%- if enable_thinking -%}"
+                    "{%- set reasoning = m.reasoning_content if m.reasoning_content is string else '' -%}"
+                    "\n<think>{{ reasoning.strip() }}</think>"
+                "{%- else -%}"
+                    "\n<think></think>"
+                "{%- endif -%}"
+                "{{ '\n' + m.content.strip() if m.content.strip() else '' }}"
+            "{%- endif -%}"
+            "{{ GLM46V_EOS_TOKEN }}"
+        "{%- endfor -%}"
+
+        "{%- if add_generation_prompt -%}"
+            "<|assistant|>\n"
+            "{{ '<think>' if enable_thinking else '<think></think>\n' }}"
+        "{%- endif -%}"
+    )
+
+    def __init__(self, enable_thinking: bool = True, **kwargs):
+        """
+        GLM-4.6V Handler
+        Parameters:
+        - enable_thinking (bool): Whether to enable the model's think process. The default is True.
+        """
+        self.enable_thinking = enable_thinking
+        super().__init__(**kwargs)
+
+    def __call__(self, **kwargs):
+        self.extra_template_arguments["enable_thinking"] = self.enable_thinking
+        self.extra_template_arguments["GLM46V_EOS_TOKEN"] = self.GLM46V_EOS_TOKEN
+
+        # https://huggingface.co/zai-org/GLM-4.6V-Flash/blob/main/generation_config.json
+        kwargs['stop'] = [self.GLM46V_EOS_TOKEN, "<|user|>", "<|observation|>", "<|code_middle|>"] # Stop token patch
+
+        llama = kwargs['llama']
+        llama.reset()
+        llama._ctx.memory_clear(True)
+        llama.n_tokens = 0
+
+        if hasattr(llama, 'input_ids'):
+            llama.input_ids.fill(0)
+
+        if hasattr(self, '_last_image_embed'):
+            self._last_image_embed = None
+            self._last_image_hash = None
+
+        if self.verbose:
+            messages = kwargs.get('messages', [])
+            try:
+                image_count = len(self.get_image_urls(messages))
+                print(f"GLM46VChatHandler(enable_thinking={self.enable_thinking}) - Processing {image_count} images", file=sys.stderr)
+            except Exception:
+                print(f"GLM46VChatHandler(enable_thinking={self.enable_thinking}) - Cleared state", file=sys.stderr)
+
+        return super().__call__(**kwargs)
+
+
 class LFM2VLChatHandler(Llava15ChatHandler):
     LFM2VL_BOS_TOKEN = "<|startoftext|>"
     LFM2VL_EOS_TOKEN = "<|im_end|>"
